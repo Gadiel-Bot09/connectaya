@@ -12,7 +12,7 @@ export async function GET(request: Request) {
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   const supabase = createClient(supabaseUrl, supabaseKey)
 
-  const EVOLUTION_URL = process.env.NEXT_PUBLIC_EVOLUTION_URL
+  const EVOLUTION_URL = (process.env.NEXT_PUBLIC_EVOLUTION_URL || '').replace(/\/+$/, '')
   const GLOBAL_API_KEY = process.env.EVOLUTION_GLOBAL_API_KEY
 
   if (!EVOLUTION_URL || !GLOBAL_API_KEY) {
@@ -126,7 +126,7 @@ export async function GET(request: Request) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'apikey': GLOBAL_API_KEY },
             body: JSON.stringify({
-              number: item.contacts.phone,      
+              number: item.contacts.phone.replace(/\D/g, ''),      
               text: finalMessage
             })
          })
