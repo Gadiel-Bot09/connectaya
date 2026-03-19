@@ -1,0 +1,16 @@
+name: Campaign Worker Queue
+
+on:
+  schedule:
+    # Runs automatically every 5 minutes (GitHub Actions shortest reliable interval)
+    - cron: '*/5 * * * *'
+  workflow_dispatch: # Allows you to run it manually from the Actions tab if you want
+
+jobs:
+  ping-worker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping API Worker
+        run: |
+          echo "Pinging ConnectaYa worker..."
+          curl -sS -o /dev/null -w "%{http_code}" https://connectaya.sinuhub.com/api/worker
