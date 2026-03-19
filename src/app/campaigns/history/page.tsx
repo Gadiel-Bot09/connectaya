@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { ManualTrigger } from '../components/manual-trigger'
+import { pauseCampaign } from '../actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -70,11 +71,16 @@ export default async function HistoryPage() {
                       </div>
                       <span className="text-xs font-medium text-slate-600">{c.sent_count} / {c.total_contacts} enviados</span>
                    </td>
-                   <td className="px-6 py-4 text-right flex justify-end items-center">
+                   <td className="px-6 py-4 text-right flex justify-end items-center gap-2">
                      <Link href={`/campaigns/reports/${c.id}`}>
                         <Button variant="outline" size="sm" className="hover:bg-blue-50 hover:text-blue-600 border-slate-200">Ver Reporte</Button>
                      </Link>
                      <ManualTrigger active={c.status === 'active'} />
+                     {c.status === 'active' && (
+                        <form action={pauseCampaign.bind(null, c.id)}>
+                           <Button type="submit" variant="ghost" size="sm" className="text-red-500 hover:bg-red-50 hover:text-red-700">Cancelar</Button>
+                        </form>
+                     )}
                    </td>
                  </tr>
                ))
