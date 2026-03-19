@@ -56,7 +56,7 @@ export default async function HistoryPage() {
                  <tr key={c.id} className="border-b last:border-0 hover:bg-slate-50/50 transition-colors">
                    <td className="px-6 py-4 font-medium text-slate-800">
                      {c.name || '(Sin nombre)'}
-                     <div className="text-xs text-slate-400 font-normal mt-1">{new Date(c.created_at).toLocaleString()}</div>
+                     <div className="text-xs text-slate-400 font-normal mt-1">{new Date(c.created_at).toLocaleString('es-CO', { timeZone: 'America/Bogota', hour12: true })}</div>
                    </td>
                    <td className="px-6 py-4">
                      <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide uppercase shadow-sm ${c.status === 'completed' ? 'bg-green-100 text-green-800 border-green-200' : c.status === 'active' ? 'bg-blue-100 text-blue-800 border-blue-200 animate-pulse' : c.status === 'paused' ? 'bg-orange-100 text-orange-800' : 'bg-slate-100 border-slate-200'}`}>
