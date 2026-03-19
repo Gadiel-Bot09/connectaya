@@ -20,7 +20,7 @@ export async function validateWhatsAppNumbers(numbers: string[]) {
     return { error: 'Debes tener al menos una instancia de WhatsApp conectada (Estado: Open) para validar números.' }
   }
 
-  const EVOLUTION_URL = (process.env.NEXT_PUBLIC_EVOLUTION_URL || '').replace(/\/+$/, '')
+  const EVOLUTION_URL = (process.env.NEXT_PUBLIC_EVOLUTION_URL || '').trim().replace(/\/+$/, '')
   const GLOBAL_API_KEY = process.env.EVOLUTION_GLOBAL_API_KEY
 
   if (!EVOLUTION_URL || !GLOBAL_API_KEY) {

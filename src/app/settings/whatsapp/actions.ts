@@ -15,7 +15,7 @@ export async function createInstance(formData: FormData) {
   const cleanName = instanceName.replace(/\s+/g, '-').toLowerCase()
   const token = Math.random().toString(36).substring(2, 15)
   
-  const EVOLUTION_URL = (process.env.NEXT_PUBLIC_EVOLUTION_URL || '').replace(/\/+$/, '')
+  const EVOLUTION_URL = (process.env.NEXT_PUBLIC_EVOLUTION_URL || '').trim().replace(/\/+$/, '')
   const GLOBAL_API_KEY = process.env.EVOLUTION_GLOBAL_API_KEY
   
   if (!EVOLUTION_URL || !GLOBAL_API_KEY) {
@@ -61,7 +61,7 @@ export async function createInstance(formData: FormData) {
 }
 
 export async function getInstanceConnection(instanceName: string) {
-  const EVOLUTION_URL = (process.env.NEXT_PUBLIC_EVOLUTION_URL || '').replace(/\/+$/, '')
+  const EVOLUTION_URL = (process.env.NEXT_PUBLIC_EVOLUTION_URL || '').trim().replace(/\/+$/, '')
   const GLOBAL_API_KEY = process.env.EVOLUTION_GLOBAL_API_KEY
 
   if (!EVOLUTION_URL || !GLOBAL_API_KEY) throw new Error('Variables missing')
@@ -81,7 +81,7 @@ export async function getInstanceConnection(instanceName: string) {
 
 export async function checkInstanceState(instanceName: string) {
   const supabase = createClient()
-  const EVOLUTION_URL = (process.env.NEXT_PUBLIC_EVOLUTION_URL || '').replace(/\/+$/, '')
+  const EVOLUTION_URL = (process.env.NEXT_PUBLIC_EVOLUTION_URL || '').trim().replace(/\/+$/, '')
   const GLOBAL_API_KEY = process.env.EVOLUTION_GLOBAL_API_KEY
 
   if (!EVOLUTION_URL || !GLOBAL_API_KEY) return null
@@ -118,7 +118,7 @@ export async function deleteInstance(instanceName: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('No autorizado')
 
-  const EVOLUTION_URL = (process.env.NEXT_PUBLIC_EVOLUTION_URL || '').replace(/\/+$/, '')
+  const EVOLUTION_URL = (process.env.NEXT_PUBLIC_EVOLUTION_URL || '').trim().replace(/\/+$/, '')
   const GLOBAL_API_KEY = process.env.EVOLUTION_GLOBAL_API_KEY
   
   await supabase.from('whatsapp_instances').delete().eq('instance_name', instanceName).eq('user_id', user.id)
@@ -135,7 +135,7 @@ export async function deleteInstance(instanceName: string) {
 
 export async function logoutInstance(instanceName: string) {
   const supabase = createClient()
-  const EVOLUTION_URL = (process.env.NEXT_PUBLIC_EVOLUTION_URL || '').replace(/\/+$/, '')
+  const EVOLUTION_URL = (process.env.NEXT_PUBLIC_EVOLUTION_URL || '').trim().replace(/\/+$/, '')
   const GLOBAL_API_KEY = process.env.EVOLUTION_GLOBAL_API_KEY
   
   try {
