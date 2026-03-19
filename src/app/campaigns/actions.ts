@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { revalidatePath } from 'next/cache'
 import OpenAI from 'openai'
 
 export async function getCampaignFormData() {
@@ -127,12 +128,11 @@ El mensaje resultante debe ser natural, directo, sin emojis excesivos y listo pa
   return { previews: results }
 }
 
-export async function pauseCampaign(id: string) {
+export async function pauseCampaign(id: string, formData?: FormData) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autorizado' }
+  if (!user) return
 
-  const { error } = await supabase.from('campaigns').update({ status: 'paused' }).eq('id', id).eq('user_id', user.id)
-  if (error) return { error: error.message }
+  await supabase.from('campaigns').update({ status: 'paused' }).eq('id', id).eq('user_id', user.id)
   revalidatePath('/campaigns/history')
 }
