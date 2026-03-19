@@ -126,3 +126,13 @@ El mensaje resultante debe ser natural, directo, sin emojis excesivos y listo pa
 
   return { previews: results }
 }
+
+export async function pauseCampaign(id: string) {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { error } = await supabase.from('campaigns').update({ status: 'paused' }).eq('id', id).eq('user_id', user.id)
+  if (error) return { error: error.message }
+  revalidatePath('/campaigns/history')
+}
