@@ -136,6 +136,36 @@ export function ReportClient({ campaign, queue }: { campaign: any, queue: any[] 
                </ResponsiveContainer>
             </CardContent>
          </Card>
+
+         {/* Tabla de Errores */}
+         {queue.some(q => q.status === 'failed') && (
+            <Card className="shadow-sm border-slate-200 border-red-200">
+               <CardHeader className="pb-2">
+                  <CardTitle className="text-lg text-red-600">Registro de Fallos</CardTitle>
+                  <CardDescription>Detalle de los errores retornados por WhatsApp</CardDescription>
+               </CardHeader>
+               <CardContent>
+                  <div className="overflow-x-auto">
+                     <table className="w-full text-sm text-left">
+                        <thead className="text-xs text-slate-500 bg-slate-50 border-b">
+                           <tr>
+                              <th className="px-4 py-3">Contacto</th>
+                              <th className="px-4 py-3">Razón del Fallo (Error API)</th>
+                           </tr>
+                        </thead>
+                        <tbody>
+                           {queue.filter(q => q.status === 'failed').map(q => (
+                              <tr key={q.id} className="border-b last:border-0 hover:bg-slate-50/50">
+                                 <td className="px-4 py-3 font-medium text-slate-700">{q.contacts?.phone || 'Desconocido'}</td>
+                                 <td className="px-4 py-3 text-red-600 font-mono text-xs max-w-lg break-words">{q.error_message || 'Error desconocido'}</td>
+                              </tr>
+                           ))}
+                        </tbody>
+                     </table>
+                  </div>
+               </CardContent>
+            </Card>
+         )}
       </div>
    )
 }
