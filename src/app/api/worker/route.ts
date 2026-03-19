@@ -121,14 +121,25 @@ export async function GET(request: Request) {
 
      // Send via Evolution API
      try {
-         // Basic text send. If attachment, needs another endpoint
-         const res = await fetch(`${EVOLUTION_URL}/message/sendText/${campaign.whatsapp_instances.instance_name}`, {
+         // Basic text send or Media send
+         const hasMedia = !!campaign.attachment_url
+         const endpoint = hasMedia ? `/message/sendMedia/${campaign.whatsapp_instances.instance_name}` : `/message/sendText/${campaign.whatsapp_instances.instance_name}`
+         
+         const payload = hasMedia ? {
+            number: item.contacts.phone.replace(/\D/g, ''),
+            mediatype: "image",
+            mimetype: "image/jpeg",
+            caption: finalMessage,
+            media: campaign.attachment_url
+         } : {
+            number: item.contacts.phone.replace(/\D/g, ''),      
+            text: finalMessage
+         }
+
+         const res = await fetch(`${EVOLUTION_URL}${endpoint}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'apikey': GLOBAL_API_KEY },
-            body: JSON.stringify({
-              number: item.contacts.phone.replace(/\D/g, ''),      
-              text: finalMessage
-            })
+            body: JSON.stringify(payload)
          })
 
          const evData = await res.json()

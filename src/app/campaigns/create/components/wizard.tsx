@@ -154,6 +154,16 @@ export function WizardClient({ formData }: { formData: any }) {
                      value={data.template_message}
                      onChange={(e: any) => updateData({ template_message: e.target.value })}
                    />
+                   
+                   <div className="mt-4">
+                     <Label>URL de Imagen Adjunta (Opcional)</Label>
+                     <Input 
+                        placeholder="Ej: https://midominio.com/imagen.jpg" 
+                        value={data.attachment_url || ''} 
+                        onChange={(e: any) => updateData({ attachment_url: e.target.value })} 
+                     />
+                     <p className="text-xs text-slate-500 mt-1">Si agregas una URL directa a una imagen pública, el mensaje se enviará como texto al pie de la foto.</p>
+                   </div>
                  </div>
                  
                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100/50 p-5 rounded-xl shadow-sm max-w-2xl">
