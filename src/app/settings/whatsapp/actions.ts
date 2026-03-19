@@ -32,7 +32,8 @@ export async function createInstance(formData: FormData) {
       body: JSON.stringify({
         instanceName: cleanName,
         token,
-        qrcode: true
+        qrcode: true,
+        integration: 'WHATSAPP-BAILEYS'
       })
     })
 
