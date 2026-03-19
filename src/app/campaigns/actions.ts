@@ -30,13 +30,19 @@ export async function createCampaign(data: any) {
   if (!user) return { error: 'No autorizado' }
 
   try {
+     let formattedScheduledAt = data.scheduled_at || null
+     if (formattedScheduledAt && formattedScheduledAt.length === 16) {
+        // Typical datetime-local input without offset (e.g., 2026-03-20T14:00)
+        formattedScheduledAt = formattedScheduledAt + ':00-05:00'
+     }
+
      const { data: campaign, error } = await supabase.from('campaigns').insert({
         user_id: user.id,
         name: data.name,
         description: data.description,
         instance_id: data.instance_id,
         schedule_type: data.schedule_type,
-        scheduled_at: data.scheduled_at || null,
+        scheduled_at: formattedScheduledAt,
         template_message: data.template_message,
         attachment_type: data.attachment_type || null,
         attachment_url: data.attachment_url || null,
