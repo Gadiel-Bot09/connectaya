@@ -20,44 +20,43 @@ export async function GET(request: Request) {
   if (!API_KEY) return NextResponse.json({ error: 'API Key de Google Maps no configurada en las variables de entorno o en los Ajustes Base' }, { status: 500 })
 
   try {
-    const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${API_KEY}`
-    
-    const res = await fetch(url)
-    const data = await res.json()
+    const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': API_KEY,
+        'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.types,places.location,places.internationalPhoneNumber,places.nationalPhoneNumber,places.websiteUri'
+      },
+      body: JSON.stringify({
+        textQuery: query,
+        languageCode: 'es'
+      })
+    })
 
-    if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
-       return NextResponse.json({ error: data.error_message || data.status }, { status: 400 })
+    const data = await response.json()
+
+    if (!response.ok) {
+       return NextResponse.json({ error: data.error?.message || 'Error de Google Places API (New)' }, { status: 400 })
     }
 
-    if (data.status === 'ZERO_RESULTS') {
+    if (!data.places || data.places.length === 0) {
        return NextResponse.json({ results: [] })
     }
 
-    const results = data.results.map((r: any) => ({
-       place_id: r.place_id,
-       name: r.name,
-       address: r.formatted_address,
-       rating: r.rating,
-       types: r.types,
-       lat: r.geometry?.location?.lat,
-       lng: r.geometry?.location?.lng
+    const results = data.places.map((p: any) => ({
+       place_id: p.id,
+       name: p.displayName?.text,
+       address: p.formattedAddress,
+       rating: p.rating,
+       types: p.types,
+       lat: p.location?.latitude,
+       lng: p.location?.longitude,
+       phone: p.internationalPhoneNumber || p.nationalPhoneNumber || null,
+       website: p.websiteUri || null
     }))
 
-    // Fetch details for top 15 results to get phone numbers
-    const placesWithDetails = await Promise.all(results.slice(0, 15).map(async (place: any) => {
-        const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=formatted_phone_number,website&key=${API_KEY}`
-        const detailsRes = await fetch(detailsUrl)
-        const detailsData = await detailsRes.json()
-        
-        return {
-           ...place,
-           phone: detailsData.result?.formatted_phone_number || null,
-           website: detailsData.result?.website || null
-        }
-    }))
-
-    // Return only places with phone numbers, since this is for WhatsApp marketing
-    const validPlaces = placesWithDetails.filter(p => p.phone)
+    // Retorna sólo los lugares que tienen un teléfono válido (vital para WhatsApp)
+    const validPlaces = results.filter((p: any) => p.phone)
 
     return NextResponse.json({ results: validPlaces })
   } catch (error: any) {
