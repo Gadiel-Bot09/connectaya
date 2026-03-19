@@ -26,11 +26,12 @@ export async function GET(request: Request) {
     .eq('status', 'scheduled')
     .lte('scheduled_at', new Date().toISOString())
 
-  // 2. Fetch one active campaign that has pending messages
+  // 2. Fetch one active campaign
   const { data: campaigns } = await supabase
     .from('campaigns')
     .select('*, whatsapp_instances(instance_name, status)')
     .eq('status', 'active')
+    .order('created_at', { ascending: true })
     .limit(1)
 
   if (!campaigns || campaigns.length === 0) {
@@ -41,7 +42,7 @@ export async function GET(request: Request) {
 
   // Check instance status
   if (campaign.whatsapp_instances?.status !== 'open') {
-    return NextResponse.json({ message: 'Instance is not connected' })
+    return NextResponse.json({ message: 'Instance is not connected', id: campaign.id })
   }
 
   // Check allowed hours using Colombia Timezone
@@ -67,18 +68,22 @@ export async function GET(request: Request) {
     .limit(batchSize)
 
   if (!queue || queue.length === 0) {
-     // Mark campaign completed
+     // Mark campaign completed safely
      await supabase.from('campaigns').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', campaign.id)
      
-     // Send Email
-     const { data: userAuth } = await supabase.auth.admin.getUserById(campaign.user_id)
-     if (userAuth?.user?.email) {
-         const { count: sentCount } = await supabase.from('message_queue').select('*', { count: 'exact', head: true }).eq('campaign_id', campaign.id).eq('status', 'sent')
-         const { count: failedCount } = await supabase.from('message_queue').select('*', { count: 'exact', head: true }).eq('campaign_id', campaign.id).eq('status', 'failed')
-         await sendCampaignCompletedEmail(userAuth.user.email, campaign.name || 'Sin Nombre', sentCount || 0, failedCount || 0)
+     // Send Email in try catch block to prevent fatal crashes blocking the completion process
+     try {
+       const { data: userAuth, error: authErr } = await supabase.auth.admin.getUserById(campaign.user_id)
+       if (!authErr && userAuth?.user?.email) {
+           const { count: sentCount } = await supabase.from('message_queue').select('*', { count: 'exact', head: true }).eq('campaign_id', campaign.id).eq('status', 'sent')
+           const { count: failedCount } = await supabase.from('message_queue').select('*', { count: 'exact', head: true }).eq('campaign_id', campaign.id).eq('status', 'failed')
+           await sendCampaignCompletedEmail(userAuth.user.email, campaign.name || 'Sin Nombre', sentCount || 0, failedCount || 0)
+       }
+     } catch (e) {
+       console.error("Silent error dispatching complete email", e)
      }
 
-     return NextResponse.json({ message: 'Campaign completed', id: campaign.id })
+     return NextResponse.json({ message: 'Campaign completed', id: campaign.id, sent: 0 })
   }
 
   // Helper random
