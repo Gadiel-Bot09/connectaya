@@ -121,18 +121,23 @@ export async function GET(request: Request) {
 
      // Send via Evolution API
      try {
+         // Normalize phone number (append 57 if it's a 10-digit Colombian mobile missing country code)
+         let cleanPhone = item.contacts.phone.replace(/\D/g, '')
+         if (cleanPhone.length === 10 && cleanPhone.startsWith('3')) cleanPhone = '57' + cleanPhone
+
          // Basic text send or Media send
          const hasMedia = !!campaign.attachment_url
-         const endpoint = hasMedia ? `/message/sendMedia/${campaign.whatsapp_instances.instance_name}` : `/message/sendText/${campaign.whatsapp_instances.instance_name}`
+         const safeInstanceName = campaign.whatsapp_instances.instance_name.toLowerCase()
+         const endpoint = hasMedia ? `/message/sendMedia/${safeInstanceName}` : `/message/sendText/${safeInstanceName}`
          
          const payload = hasMedia ? {
-            number: item.contacts.phone.replace(/\D/g, ''),
+            number: cleanPhone,
             mediatype: "image",
             mimetype: "image/jpeg",
             caption: finalMessage,
             media: campaign.attachment_url
          } : {
-            number: item.contacts.phone.replace(/\D/g, ''),      
+            number: cleanPhone,      
             text: finalMessage
          }
 

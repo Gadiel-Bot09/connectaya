@@ -27,11 +27,15 @@ export async function validateWhatsAppNumbers(numbers: string[]) {
      return { error: 'Evolution API no está configurada.' }
   }
 
-  // 2. Clean numbers for Evolution API format (only numbers)
-  const cleanNumbers = numbers.map(n => n.replace(/\D/g, ''))
+  // 2. Clean numbers for Evolution API format (only numbers) and add '57' if missing for 10-digit mobiles
+  const cleanNumbers = numbers.map(n => {
+     let clean = n.replace(/\D/g, '')
+     if (clean.length === 10 && clean.startsWith('3')) clean = '57' + clean
+     return clean
+  })
   
   try {
-    const res = await fetch(`${EVOLUTION_URL}/chat/whatsappNumbers/${instance.instance_name}`, {
+    const res = await fetch(`${EVOLUTION_URL}/chat/whatsappNumbers/${instance.instance_name.toLowerCase()}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -60,7 +64,8 @@ export async function validateWhatsAppNumbers(numbers: string[]) {
       data.forEach((item: any, index: number) => {
          // Some versions don't return "number" prop if it's invalid, so we rely on index corresponding to the input array
          const originalNumber = numbers[index]
-         validationMap[originalNumber] = !!item?.exists
+         const cleanNum = originalNumber.replace(/\D/g, '')
+         validationMap[cleanNum] = !!item?.exists
       })
     }
 
