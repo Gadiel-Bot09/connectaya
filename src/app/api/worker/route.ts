@@ -57,6 +57,14 @@ export async function GET(request: Request) {
   const batchSize = 5
   let messagesSentThisRun = 0
 
+  // Recover stuck 'sending' messages from dead workers
+  await supabase
+    .from('message_queue')
+    .update({ status: 'failed', error_message: 'Timeout from Vercel edge/Hanging media URL' })
+    .eq('campaign_id', campaign.id)
+    .eq('status', 'sending')
+    // Ideally we filter by time, but given we only process one campaign limit, any 'sending' here from a past run is definitely stuck
+  
   const { data: queue } = await supabase
     .from('message_queue')
     .select('*, contacts(*)')
