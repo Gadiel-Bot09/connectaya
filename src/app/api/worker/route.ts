@@ -49,7 +49,7 @@ export async function GET(request: Request) {
   const formatter = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Bogota', hour: 'numeric', hour12: false })
   const currentHour = parseInt(formatter.format(new Date()), 10)
   
-  if (currentHour < campaign.allowed_start_hour || currentHour >= campaign.allowed_end_hour) {
+  if (currentHour < campaign.allowed_start_hour || currentHour > campaign.allowed_end_hour) {
     return NextResponse.json({ message: 'Outside of allowed hours' })
   }
 
