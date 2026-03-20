@@ -3,10 +3,15 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, Legend } from 'recharts'
-import { Download } from 'lucide-react'
+import { Download, FileText } from 'lucide-react'
+import { useRef, useState } from 'react'
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
 
 export function ReportClient({ campaign, queue }: { campaign: any, queue: any[] }) {
-   
+   const reportRef = useRef<HTMLDivElement>(null)
+   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
+
    // 1. Dona: exitosos vs fallidos vs pendientes
    const statusCounts = queue.reduce((acc, curr) => {
       acc[curr.status] = (acc[curr.status] || 0) + 1
@@ -47,11 +52,43 @@ export function ReportClient({ campaign, queue }: { campaign: any, queue: any[] 
        alert('La exportación directa estará disponible próximamente en la versión de producción.')
    }
 
+   const handleDownloadPDF = async () => {
+       if (!reportRef.current) return
+       setIsGeneratingPDF(true)
+       try {
+           const canvas = await html2canvas(reportRef.current, { scale: 2, useCORS: true, backgroundColor: '#ffffff' })
+           const imgData = canvas.toDataURL('image/png')
+           const pdf = new jsPDF('p', 'mm', 'a4')
+           const pdfWidth = pdf.internal.pageSize.getWidth()
+           const pdfHeight = (canvas.height * pdfWidth) / canvas.width
+           
+           pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
+           pdf.save(`Reporte_Campana_${campaign.id || 'export'}.pdf`)
+       } catch (err) {
+           console.error('Error generando PDF:', err)
+           alert('Ocurrió un error al preparar el documento. Intenta de nuevo.')
+       } finally {
+           setIsGeneratingPDF(false)
+       }
+   }
+
    const successRate = queue.length > 0 ? Math.round(((statusCounts['sent'] || 0) / queue.length) * 100) : 0
 
    return (
-      <div className="space-y-6">
-         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="flex flex-col gap-6">
+         <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <div>
+               <h2 className="text-xl font-bold text-slate-800">Reporte de Desempeño</h2>
+               <p className="text-sm text-slate-500">Métricas en tiempo real de la campaña</p>
+            </div>
+            <Button onClick={handleDownloadPDF} disabled={isGeneratingPDF} className="bg-slate-800 hover:bg-slate-700 text-white font-bold">
+               {isGeneratingPDF ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"/> Renderizando...</> : <><FileText className="w-4 h-4 mr-2" /> PDF Imprimible</>}
+            </Button>
+         </div>
+
+         {/* Contenedor Ref para el PDF */}
+         <div ref={reportRef} className="space-y-6 bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card className="shadow-sm border-slate-200">
                <CardContent className="p-6">
                   <p className="text-sm font-medium text-slate-500 mb-1">Total Contactos</p>
@@ -166,6 +203,7 @@ export function ReportClient({ campaign, queue }: { campaign: any, queue: any[] 
                </CardContent>
             </Card>
          )}
+         </div>
       </div>
    )
 }
