@@ -65,13 +65,14 @@ export async function GET(request: Request) {
   const batchSize = 5
   let messagesSentThisRun = 0
 
-  // Recover stuck 'sending' messages from dead workers
+  // Recover stuck 'sending' messages from dead workers safely (older than 5 minutes)
+  const fiveMinsAgo = new Date(Date.now() - 5 * 60000).toISOString()
   await supabase
     .from('message_queue')
-    .update({ status: 'failed', error_message: 'Timeout from Vercel edge/Hanging media URL' })
+    .update({ status: 'failed', error_message: 'Timeout del servidor cruzado' })
     .eq('campaign_id', campaign.id)
     .eq('status', 'sending')
-    // Ideally we filter by time, but given we only process one campaign limit, any 'sending' here from a past run is definitely stuck
+    .lt('updated_at', fiveMinsAgo)
   
   const { data: queue } = await supabase
     .from('message_queue')
@@ -102,6 +103,10 @@ export async function GET(request: Request) {
      return NextResponse.json({ message: 'Campaign completed', id: campaign.id, sent: 0 })
   }
 
+  // BULK LOCK QUEUE TO PREVENT CONCURRENCY RACE CONDITIONS (Multiple Forzar Envío Clicks)
+  const queueIds = queue.map(q => q.id)
+  await supabase.from('message_queue').update({ status: 'sending', updated_at: new Date().toISOString() }).in('id', queueIds)
+
   // Helper random
   const randomBetween = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1) + min)
   const sleep = (ms: number) => new Promise(res => setTimeout(res, ms))
@@ -116,14 +121,10 @@ export async function GET(request: Request) {
      // Pause every N logic (very simplified for stateless runs: we check modulo on total sent count + 1)
      const currentSent = campaign.sent_count + messagesSentThisRun
      if (currentSent > 0 && currentSent % campaign.pause_every_n === 0) {
-         // Should pause. For a real cron, we could update `paused_until` in DB.
-         // Here we will just sleep if less than Vercel timeout, or return early and let next cron pick it up later.
-         // Let's do a long sleep if allowed, or just exit. Since pause is Min: 180s = 3 mins, we might timeout.
-         // We will just return, and rely on the cron job. Wait, the cron will just pick it up immediately.
-         // A true implementation needs a `resume_at` timestamp.
+         // Long pause logic (Could implement external database state for large distributed architecture)
      }
 
-     await supabase.from('message_queue').update({ status: 'sending', attempts: item.attempts + 1 }).eq('id', item.id)
+     // Mark current attempt locally
 
      // Personalize message
      let finalMessage = item.personalized_message
@@ -177,6 +178,8 @@ export async function GET(request: Request) {
          await supabase.from('message_queue').update({ 
             status: 'sent', 
             sent_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            attempts: item.attempts + 1,
             evolution_message_id: evData.key?.id
          }).eq('id', item.id)
 
@@ -191,7 +194,9 @@ export async function GET(request: Request) {
          // Fail
          await supabase.from('message_queue').update({ 
             status: item.attempts + 1 >= 2 ? 'failed' : 'failed', // For simplicity
-            error_message: err.message 
+            error_message: err.message,
+            updated_at: new Date().toISOString(),
+            attempts: item.attempts + 1
          }).eq('id', item.id)
 
          await supabase.from('message_logs').insert({

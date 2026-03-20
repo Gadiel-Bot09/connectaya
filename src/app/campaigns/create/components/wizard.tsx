@@ -53,7 +53,8 @@ export function WizardClient({ formData }: { formData: any }) {
        setIsLoading(false)
     } else {
        if (data.schedule_type === 'immediate') {
-          fetch('/api/worker').catch(e => console.error("Worker auto-trigger error", e))
+          // Bypasses Github Actions by natively pinging the worker. Keepalive ensures termination protection.
+          fetch('/api/worker', { keepalive: true }).catch(e => console.error("Worker auto-trigger error", e))
        }
        router.push('/campaigns/history?success=true')
     }
