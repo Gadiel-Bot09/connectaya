@@ -5,7 +5,7 @@ import Papa from 'papaparse'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { createContactsBulk } from '../actions'
-import { AlertCircle, CheckCircle2 } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Download } from 'lucide-react'
 
 export function ImportCsvModal({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
   const [file, setFile] = useState<File | null>(null)
@@ -42,6 +42,19 @@ export function ImportCsvModal({ open, onOpenChange }: { open: boolean, onOpenCh
     })
   }
 
+  const handleDownloadTemplate = () => {
+    const csvContent = 'name,phone,company,city,email,tags\nJuan Perez,573001234567,Mi Empresa SAS,Medellín,juan@ejemplo.com,"VIP, cliente_nuevo"\nMaria Gomez,573100000000,,,,'
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', 'Plantilla_Contactos_SinuHub.csv')
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -53,6 +66,9 @@ export function ImportCsvModal({ open, onOpenChange }: { open: boolean, onOpenCh
             <p className="font-semibold text-slate-800 mb-2">Formato requerido:</p>
             <p>El archivo debe incluir una fila de cabecera con al menos: <code>name</code> y <code>phone</code>.</p>
             <p>Columnas opcionales: <code>company</code>, <code>city</code>, <code>email</code>, <code>tags</code> (separadas por coma).</p>
+            <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="w-full mt-4 bg-white border-dashed text-slate-600 hover:text-slate-800">
+               <Download className="w-4 h-4 mr-2" /> Descargar Plantilla de Ejemplo
+            </Button>
           </div>
           
           <input 
