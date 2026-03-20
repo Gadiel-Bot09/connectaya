@@ -52,6 +52,9 @@ export function WizardClient({ formData }: { formData: any }) {
        alert('Error: ' + res.error)
        setIsLoading(false)
     } else {
+       if (data.schedule_type === 'immediate') {
+          fetch('/api/worker').catch(e => console.error("Worker auto-trigger error", e))
+       }
        router.push('/campaigns/history?success=true')
     }
   }
@@ -177,6 +180,9 @@ export function WizardClient({ formData }: { formData: any }) {
                                const result = await res.json()
                                if (result.url) {
                                   updateData({ attachment_url: result.url })
+                                  // Invoke Next.js API asynchronous worker synchronously
+                                  fetch('/api/worker').catch(e => console.error(e))
+                                  setStep(4)
                                } else {
                                   alert('Error subiendo imagen: ' + (result.error || 'Desconocido'))
                                   e.target.value = ''
