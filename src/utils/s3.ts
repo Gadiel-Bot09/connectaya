@@ -1,17 +1,17 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 
 const s3Client = new S3Client({
-  region: "us-east-1", // Minio default usually works with us-east-1
-  endpoint: process.env.MINIO_ENDPOINT,
+  region: "us-east-1", 
+  endpoint: (process.env.MINIO_ENDPOINT || '').trim(),
   credentials: {
-    accessKeyId: process.env.MINIO_ACCESS_KEY!,
-    secretAccessKey: process.env.MINIO_SECRET_KEY!,
+    accessKeyId: (process.env.MINIO_ACCESS_KEY || '').trim(),
+    secretAccessKey: (process.env.MINIO_SECRET_KEY || '').trim(),
   },
-  forcePathStyle: true, // Crucial for Minio compatibility
+  forcePathStyle: true, 
 });
 
 export async function uploadFileToMinio(buffer: Buffer, filename: string, mimeType: string): Promise<string> {
-  const bucketName = process.env.MINIO_BUCKET_NAME!;
+  const bucketName = (process.env.MINIO_BUCKET_NAME || '').trim();
   
   const uploadParams = {
     Bucket: bucketName,
@@ -24,11 +24,10 @@ export async function uploadFileToMinio(buffer: Buffer, filename: string, mimeTy
   
   try {
     await s3Client.send(command);
-    // Returns the direct static URL for the image
-    const endpointRegex = process.env.MINIO_ENDPOINT?.replace(/\/+$/, '') || '';
+    const endpointRegex = (process.env.MINIO_ENDPOINT || '').trim().replace(/\/+$/, '');
     return `${endpointRegex}/${bucketName}/${filename}`;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error uploading to Minio:", error);
-    throw new Error("S3 Upload failed");
+    throw new Error("S3 Upload failed: " + (error.message || JSON.stringify(error)));
   }
 }
