@@ -46,9 +46,23 @@ export async function validateWhatsAppNumbers(numbers: string[]) {
       })
     })
 
-    const data = await res.json()
+    let data: any = {}
+    try {
+      data = await res.json()
+    } catch (parseErr) {
+      return { error: `Servidor Evolution falló o timeout (HTTP ${res.status})` }
+    }
+
     if (!res.ok) {
-       return { error: data?.response?.message || 'Error al validar con Evolution API' }
+       let errorMsg = 'Rechazo genérico'
+       if (data?.message) {
+          errorMsg = Array.isArray(data.message) ? data.message.join(', ') : data.message
+       } else if (data?.response?.message) {
+          errorMsg = Array.isArray(data.response.message) ? data.response.message.join(', ') : data.response.message
+       } else if (data?.error) {
+          errorMsg = data.error
+       }
+       return { error: `[Evolution HTTP ${res.status}] ${errorMsg}` }
     }
 
     // data format is roughly: [ { exists: true, jid: "...", number: "..." } ... ]
