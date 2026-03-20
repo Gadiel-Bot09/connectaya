@@ -156,13 +156,45 @@ export function WizardClient({ formData }: { formData: any }) {
                    />
                    
                    <div className="mt-4">
-                     <Label>URL de Imagen Adjunta (Opcional)</Label>
-                     <Input 
-                        placeholder="Ej: https://midominio.com/imagen.jpg" 
-                        value={data.attachment_url || ''} 
-                        onChange={(e: any) => updateData({ attachment_url: e.target.value })} 
-                     />
-                     <p className="text-xs text-slate-500 mt-1">Si agregas una URL directa a una imagen pública, el mensaje se enviará como texto al pie de la foto.</p>
+                     <Label>Imagen Adjunta (Opcional)</Label>
+                     <div className="mt-1 flex items-center">
+                       <Input 
+                          type="file"
+                          accept="image/jpeg, image/png, image/webp"
+                          className="w-full text-slate-600 file:cursor-pointer file:mr-4 file:py-1 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                          onChange={async (e: any) => {
+                             const file = e.target.files?.[0]
+                             if (!file) {
+                               updateData({ attachment_url: '' })
+                               return
+                             }
+                             
+                             const formData = new FormData()
+                             formData.append('file', file)
+                             
+                             try {
+                               const res = await fetch('/api/upload', { method: 'POST', body: formData })
+                               const result = await res.json()
+                               if (result.url) {
+                                  updateData({ attachment_url: result.url })
+                               } else {
+                                  alert('Error subiendo imagen: ' + (result.error || 'Desconocido'))
+                                  e.target.value = ''
+                               }
+                             } catch(err) {
+                               alert('Error de conexión subiendo la foto')
+                               e.target.value = ''
+                             }
+                          }} 
+                       />
+                     </div>
+                     {data.attachment_url && (
+                        <div className="mt-2 text-sm text-green-600 font-medium flex items-center gap-1">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+                          Imagen cargada correctamente a Minio
+                        </div>
+                     )}
+                     <p className="text-xs text-slate-500 mt-2">La imagen se subirá automáticamente a tu servidor seguro Minio y se enviará junto al mensaje base.</p>
                    </div>
                  </div>
                  
