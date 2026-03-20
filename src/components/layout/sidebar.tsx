@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { LayoutDashboard, Users, Send, MapPin, Settings, History, MessageSquareShare } from 'lucide-react'
+import { Logo } from '@/components/ui/logo'
 
 const navItems = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -21,11 +22,8 @@ export function Sidebar() {
   return (
     <aside className="fixed inset-y-0 left-0 z-20 flex w-64 flex-col border-r bg-slate-950 text-slate-300 transition-all lg:w-72">
       <div className="flex h-16 items-center px-6 border-b border-slate-800 bg-slate-950">
-        <Link href="/" className="flex items-center gap-3 shrink-0">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow">
-             <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-          </div>
-          <span className="text-xl font-extrabold text-white tracking-tight">Connecta<span className="text-blue-500">Ya</span></span>
+        <Link href="/" className="inline-block transition-transform hover:scale-105">
+           <Logo variant="dark" iconClassName="w-8 h-8 rounded-lg" textClassName="text-xl" />
         </Link>
       </div>
 

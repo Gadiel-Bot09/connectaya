@@ -7,9 +7,11 @@ import { Bell, Search, LogOut } from 'lucide-react'
 export function AppLayoutWrapper({ children, userInitial, userName, userRole }: { children: React.ReactNode, userInitial: string, userName: string, userRole: string }) {
   const pathname = usePathname()
 
-  const isLoginRoute = pathname === '/login'
+  // Definir explícitamente las rutas públicas donde NO debe aparecer la barra lateral del Dashboard
+  const publicRoutes = ['/login', '/register', '/reset-password', '/update-password', '/']
+  const isPublicRoute = publicRoutes.includes(pathname)
 
-  if (isLoginRoute) {
+  if (isPublicRoute) {
     return <>{children}</>
   }
 

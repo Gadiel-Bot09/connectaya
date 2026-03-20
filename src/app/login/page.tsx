@@ -1,4 +1,5 @@
 import { LoginForm } from '@/components/auth/login-form'
+import { Logo } from '@/components/ui/logo'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,12 +11,7 @@ export default function LoginPage() {
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1557683316-973673baf926?q=80&w=2000&auto=format&fit=crop')] opacity-10 bg-cover bg-center mix-blend-overlay"></div>
         
         <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg">
-              <svg className="w-7 h-7 text-blue-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-            </div>
-            <h1 className="text-3xl font-extrabold text-white tracking-tight">Connecta<span className="text-blue-400">Ya</span></h1>
-          </div>
+          <Logo variant="dark" className="mb-8" iconClassName="w-12 h-12" textClassName="text-3xl" />
           <h2 className="text-5xl font-bold text-white leading-[1.15] mt-16 mb-6 max-w-xl">
             La plataforma definitiva para escalar tus envíos por WhatsApp.
           </h2>
@@ -41,11 +37,8 @@ export default function LoginPage() {
       {/* Sección Derecha - Formulario */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 lg:p-16 bg-white relative shadow-[-10px_0_30px_-15px_rgba(0,0,0,0.1)] z-10">
          <div className="w-full max-w-[420px]">
-           <div className="lg:hidden flex items-center gap-3 mb-10 justify-center">
-             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-md">
-               <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-             </div>
-             <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Connecta<span className="text-blue-600">Ya</span></h1>
+           <div className="lg:hidden flex justify-center mb-10">
+             <Logo iconClassName="w-10 h-10" textClassName="text-3xl" />
            </div>
            
            <LoginForm />

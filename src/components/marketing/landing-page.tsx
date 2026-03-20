@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { ArrowRight, Bot, MapPin, Zap, CheckCircle2, Server, BarChart2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Logo } from '@/components/ui/logo'
 
 export function LandingPage() {
   return (
@@ -8,12 +9,7 @@ export function LandingPage() {
       
       {/* Navbar Minimalista */}
       <nav className="absolute top-0 w-full flex items-center justify-between p-6 max-w-7xl mx-auto left-0 right-0 z-50">
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-             <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-          </div>
-          <span className="text-2xl font-extrabold text-slate-900 tracking-tight">Connecta<span className="text-blue-600">Ya</span></span>
-        </div>
+        <Logo />
         <div className="flex items-center gap-4">
           <Link href="/login" className="text-sm font-bold text-slate-600 hover:text-blue-600 transition-colors">Iniciar sesión</Link>
           <Link href="/register">
