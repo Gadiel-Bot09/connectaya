@@ -4,12 +4,17 @@ import { Button } from '@/components/ui/button'
 import { Users, Send, CheckCircle2, AlertTriangle, ArrowRight, Play, Server, Clock, MapPin } from 'lucide-react'
 import Link from 'next/link'
 
+import { LandingPage } from '@/components/marketing/landing-page'
+
 export const dynamic = 'force-dynamic'
 
-export default async function DashboardPage() {
+export default async function IndexPage() {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if(!user) return null
+  
+  if(!user) {
+     return <LandingPage />
+  }
 
   // Get Stats
   const [{ count: contactsCount }, { count: instancesCount }, { count: campaignsCount }] = await Promise.all([

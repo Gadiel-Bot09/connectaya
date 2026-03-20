@@ -4,11 +4,12 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { login, signup } from '@/app/login/actions'
+import { login } from '@/app/login/actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
+import { AlertCircle, Loader2 } from 'lucide-react'
+import Link from 'next/link'
 
 const formSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -17,9 +18,7 @@ const formSchema = z.object({
 
 export function LoginForm() {
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [isRegistering, setIsRegistering] = useState(false)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -29,7 +28,6 @@ export function LoginForm() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
     setError(null)
-    setSuccess(null)
     const formData = new FormData()
     formData.append('email', values.email)
     formData.append('password', values.password)
@@ -39,32 +37,6 @@ export function LoginForm() {
       setError(result.error)
     }
     setIsLoading(false)
-  }
-
-  async function onRegister() {
-    setIsRegistering(true)
-    setError(null)
-    setSuccess(null)
-    const values = form.getValues()
-    
-    if(!values.email || values.password.length < 6) {
-       setError('Por favor, ingresa un correo válido y una contraseña de al menos 6 caracteres.')
-       setIsRegistering(false)
-       return
-    }
-
-    const formData = new FormData()
-    formData.append('email', values.email)
-    formData.append('password', values.password)
-    
-    const result = await signup(formData)
-    if (result?.error) {
-      setError(result.error)
-    } else if (result?.success) {
-      setSuccess(result.message || 'Registro exitoso')
-      form.setValue('password', '') // Limpiar la contraseña tras registro
-    }
-    setIsRegistering(false)
   }
 
   return (
@@ -92,6 +64,7 @@ export function LoginForm() {
         <div className="space-y-2.5">
           <div className="flex justify-between items-center">
              <Label htmlFor="password" className="text-slate-700 font-bold block">Contraseña</Label>
+             <Link href="/reset-password" className="text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors">¿Olvidaste tu contraseña?</Link>
           </div>
           <Input 
              id="password" 
@@ -112,18 +85,11 @@ export function LoginForm() {
           </div>
         )}
 
-        {success && (
-          <div className="flex items-start gap-2.5 bg-green-50 text-green-800 p-4 rounded-xl border border-green-200 text-[14px] animate-in fade-in slide-in-from-top-2">
-             <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
-             <p className="font-medium leading-relaxed">{success}</p>
-          </div>
-        )}
-
         <div className="flex flex-col gap-3 pt-4">
           <Button 
              type="submit" 
              className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[15px] rounded-xl shadow-md transition-all active:scale-[0.98]" 
-             disabled={isLoading || isRegistering}
+             disabled={isLoading}
           >
             {isLoading ? <><Loader2 className="w-5 h-5 mr-2 animate-spin"/> Abriendo panel...</> : 'Iniciar Sesión'}
           </Button>
@@ -135,15 +101,15 @@ export function LoginForm() {
             </div>
           </div>
           
-          <Button 
-             type="button" 
-             variant="outline" 
-             className="w-full h-12 border-slate-300 text-slate-700 font-bold text-[15px] hover:bg-slate-50 rounded-xl transition-all active:scale-[0.98]" 
-             onClick={onRegister} 
-             disabled={isLoading || isRegistering}
-          >
-            {isRegistering ? <><Loader2 className="w-5 h-5 mr-2 animate-spin"/> Registrando...</> : 'Crear Cuenta Nueva'}
-          </Button>
+          <Link href="/register">
+             <Button 
+                type="button" 
+                variant="outline" 
+                className="w-full h-12 border-slate-300 text-slate-700 font-bold text-[15px] hover:bg-slate-50 rounded-xl transition-all active:scale-[0.98]" 
+             >
+               Crear Cuenta Nueva
+             </Button>
+          </Link>
         </div>
       </form>
       

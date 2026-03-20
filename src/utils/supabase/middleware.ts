@@ -58,15 +58,21 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const isLoginRoute = request.nextUrl.pathname.startsWith('/login')
+  const isAuthRoute = request.nextUrl.pathname.startsWith('/login') || 
+                      request.nextUrl.pathname.startsWith('/register') || 
+                      request.nextUrl.pathname.startsWith('/reset-password') ||
+                      request.nextUrl.pathname.startsWith('/auth')
 
-  if (!user && !isLoginRoute) {
+  const isRootRoute = request.nextUrl.pathname === '/'
+
+  if (!user && !isAuthRoute && !isRootRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  if (user && isLoginRoute) {
+  // Si el usuario ya está autenticado, no debería ver el form de login, registro ni reset.
+  if (user && isAuthRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/'
     return NextResponse.redirect(url)

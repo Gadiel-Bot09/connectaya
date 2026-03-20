@@ -81,3 +81,35 @@ export async function signup(formData: FormData) {
 
   return { success: true, message: '¡Cuenta creada! Ya puedes iniciar sesión con tus credenciales.' }
 }
+
+export async function resetPassword(formData: FormData) {
+  const email = formData.get('email') as string
+  const supabase = createClient()
+  
+  const origin = headers().get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+  
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${origin}/auth/callback?next=/update-password`,
+  })
+
+  if (error) {
+    return { error: 'No se pudo procesar la solicitud. Verifica el correo e intenta de nuevo.' }
+  }
+
+  return { success: true, message: 'Revisa tu correo electrónico. Te hemos enviado un enlace seguro.' }
+}
+
+export async function updatePassword(formData: FormData) {
+  const password = formData.get('password') as string
+  const supabase = createClient()
+  
+  const { error } = await supabase.auth.updateUser({
+    password: password,
+  })
+
+  if (error) {
+    return { error: 'Error al actualizar la contraseña: ' + error.message }
+  }
+
+  return { success: true }
+}
