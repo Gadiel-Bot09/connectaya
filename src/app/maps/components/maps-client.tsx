@@ -224,7 +224,8 @@ export function MapsClient() {
              </div>
           </div>
         ) : results.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {visibleResults.length === 0 ? (
                <div className="col-span-1 md:col-span-2 flex flex-col items-center justify-center py-20 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
                   <p className="text-slate-500 font-medium">No hay negocios que cumplan con los filtros actuales.</p>
@@ -312,6 +313,7 @@ export function MapsClient() {
                 </Button>
              </div>
           )}
+          </>
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl bg-white h-full min-h-[400px]">
              <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4">
