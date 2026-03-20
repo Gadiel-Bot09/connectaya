@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient as createJsClient } from '@supabase/supabase-js'
+import { createClient as createServerClient } from '@/utils/supabase/server'
 import OpenAI from 'openai'
 import { sendCampaignCompletedEmail } from '@/utils/email'
 
@@ -7,10 +8,17 @@ import { sendCampaignCompletedEmail } from '@/utils/email'
 export const maxDuration = 300 // Set max duration if deployed on Vercel Pro (5 mins) 
 
 export async function GET(request: Request) {
-  // Use service role key to bypass RLS in the background worker
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  const supabase = createClient(supabaseUrl, supabaseKey)
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  
+  let supabase;
+  if (serviceKey) {
+     // Cron Environment / Local environment with Service_Role configured - Bypasses RLS absolutely
+     supabase = createJsClient(supabaseUrl, serviceKey)
+  } else {
+     // Fallback for manual executions using specific user's login cookies if Service Key is somehow missing
+     supabase = createServerClient()
+  }
 
   const EVOLUTION_URL = (process.env.NEXT_PUBLIC_EVOLUTION_URL || '').trim().replace(/\/+$/, '')
   const GLOBAL_API_KEY = process.env.EVOLUTION_GLOBAL_API_KEY
