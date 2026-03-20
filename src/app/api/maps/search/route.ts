@@ -19,46 +19,64 @@ export async function GET(request: Request) {
   }
   if (!API_KEY) return NextResponse.json({ error: 'API Key de Google Maps no configurada en las variables de entorno o en los Ajustes Base' }, { status: 500 })
 
+  const limitParam = parseInt(searchParams.get('limit') || '20', 10)
+  const maxLimit = Math.min(limitParam, 200) // Hard cap at 200 to protect quota
+  
+  let allValidPlaces: any[] = []
+  let pageToken: string | undefined = undefined
+
   try {
-    const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Goog-Api-Key': API_KEY,
-        'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.types,places.location,places.internationalPhoneNumber,places.nationalPhoneNumber,places.websiteUri'
-      },
-      body: JSON.stringify({
+    while (allValidPlaces.length < maxLimit) {
+      const body: any = {
         textQuery: query,
-        languageCode: 'es'
+        languageCode: 'es',
+        pageSize: 20
+      }
+      if (pageToken) body.pageToken = pageToken
+
+      const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': API_KEY,
+          'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.types,places.location,places.internationalPhoneNumber,places.nationalPhoneNumber,places.websiteUri,nextPageToken'
+        },
+        body: JSON.stringify(body)
       })
-    })
 
-    const data = await response.json()
+      const data = await response.json()
 
-    if (!response.ok) {
-       return NextResponse.json({ error: data.error?.message || 'Error de Google Places API (New)' }, { status: 400 })
+      if (!response.ok) {
+         return NextResponse.json({ error: data.error?.message || 'Error de Google Places API (New)' }, { status: 400 })
+      }
+
+      if (!data.places || data.places.length === 0) break
+
+      const results = data.places.map((p: any) => ({
+         place_id: p.id,
+         name: p.displayName?.text,
+         address: p.formattedAddress,
+         rating: p.rating,
+         types: p.types,
+         lat: p.location?.latitude,
+         lng: p.location?.longitude,
+         phone: p.internationalPhoneNumber || p.nationalPhoneNumber || null,
+         website: p.websiteUri || null
+      }))
+
+      // Filtering valid phones and deduplicating
+      const validPlaces = results.filter((p: any) => p.phone)
+      for (const vp of validPlaces) {
+         if (!allValidPlaces.find(exist => exist.place_id === vp.place_id)) {
+            allValidPlaces.push(vp)
+         }
+      }
+
+      pageToken = data.nextPageToken
+      if (!pageToken) break // No more pages from Google
     }
 
-    if (!data.places || data.places.length === 0) {
-       return NextResponse.json({ results: [] })
-    }
-
-    const results = data.places.map((p: any) => ({
-       place_id: p.id,
-       name: p.displayName?.text,
-       address: p.formattedAddress,
-       rating: p.rating,
-       types: p.types,
-       lat: p.location?.latitude,
-       lng: p.location?.longitude,
-       phone: p.internationalPhoneNumber || p.nationalPhoneNumber || null,
-       website: p.websiteUri || null
-    }))
-
-    // Retorna sólo los lugares que tienen un teléfono válido (vital para WhatsApp)
-    const validPlaces = results.filter((p: any) => p.phone)
-
-    return NextResponse.json({ results: validPlaces })
+    return NextResponse.json({ results: allValidPlaces.slice(0, maxLimit) })
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }

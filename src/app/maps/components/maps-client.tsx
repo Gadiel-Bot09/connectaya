@@ -22,6 +22,7 @@ type Place = {
 
 export function MapsClient() {
   const [query, setQuery] = useState('')
+  const [limit, setLimit] = useState(20)
   const [results, setResults] = useState<Place[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(false)
@@ -34,6 +35,10 @@ export function MapsClient() {
   const [showOnlyWhatsApp, setShowOnlyWhatsApp] = useState(false)
   const [validationError, setValidationError] = useState<string | null>(null)
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 20
+
   const handleSearch = async (e?: React.FormEvent) => {
     e?.preventDefault()
     if (!query.trim()) return
@@ -44,9 +49,10 @@ export function MapsClient() {
     setResults([])
     setSelected(new Set())
     setWhatsappStatus({})
+    setCurrentPage(1)
 
     try {
-      const res = await fetch('/api/maps/search?query=' + encodeURIComponent(query))
+      const res = await fetch('/api/maps/search?query=' + encodeURIComponent(query) + '&limit=' + limit)
       const data = await res.json()
       
       if (data.error) throw new Error(data.error)
@@ -114,21 +120,42 @@ export function MapsClient() {
        })
      : results
 
+  const totalPages = Math.ceil(visibleResults.length / itemsPerPage)
+  const currentItems = visibleResults.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+
   return (
     <div className="flex flex-col lg:flex-row gap-6">
       <div className="w-full lg:w-1/3 flex flex-col gap-4">
         <Card className="shadow-sm border-slate-200">
           <CardContent className="p-5">
             <form onSubmit={handleSearch} className="flex flex-col gap-3">
-              <label className="text-sm font-bold text-slate-800">Buscar negocios</label>
-              <Input 
-                placeholder='Ej: "Peluquerías en Medellín"' 
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                required
-                className="bg-slate-50 border-slate-200"
-              />
-              <Button type="submit" disabled={isLoading} className="w-full font-bold">
+              <div className="flex gap-3">
+                 <div className="flex-1">
+                    <label className="text-sm font-bold text-slate-800">Buscar negocios</label>
+                    <Input 
+                      placeholder='Ej: "Peluquerías en Medellín"' 
+                      value={query}
+                      onChange={e => setQuery(e.target.value)}
+                      required
+                      className="bg-slate-50 border-slate-200 mt-1"
+                    />
+                 </div>
+                 <div className="w-24 shrink-0">
+                    <label className="text-sm font-bold text-slate-800">Límite</label>
+                    <select 
+                      className="w-full h-10 border border-slate-200 rounded-md px-3 text-sm bg-slate-50 mt-1" 
+                      value={limit} 
+                      onChange={e => setLimit(Number(e.target.value))}
+                    >
+                       <option value={10}>10</option>
+                       <option value={20}>20</option>
+                       <option value={50}>50</option>
+                       <option value={100}>100</option>
+                       <option value={200}>200</option>
+                    </select>
+                 </div>
+              </div>
+              <Button type="submit" disabled={isLoading} className="w-full font-bold mt-1">
                 {isLoading ? 'Buscando con Google...' : <><Search className="w-4 h-4 mr-2" /> Buscar</>}
               </Button>
             </form>
@@ -203,7 +230,7 @@ export function MapsClient() {
                   <p className="text-slate-500 font-medium">No hay negocios que cumplan con los filtros actuales.</p>
                </div>
             ) : (
-                visibleResults.map(place => {
+                currentItems.map(place => {
                   const isSelected = selected.has(place.place_id)
                   const cleanPhone = place.phone.replace(/\D/g, '')
                   const hasWa = whatsappStatus[cleanPhone]
@@ -259,6 +286,32 @@ export function MapsClient() {
                 })
             )}
           </div>
+          
+          {totalPages > 1 && (
+             <div className="mt-8 flex items-center justify-center gap-4">
+                <Button 
+                   variant="outline" 
+                   size="sm" 
+                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+                   disabled={currentPage === 1}
+                   className="hover:bg-slate-100"
+                >
+                   Anterior
+                </Button>
+                <div className="text-sm font-medium text-slate-600 bg-white px-4 py-1.5 rounded-full border border-slate-200 shadow-sm">
+                   Página {currentPage} de {totalPages}
+                </div>
+                <Button 
+                   variant="outline" 
+                   size="sm" 
+                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
+                   disabled={currentPage === totalPages}
+                   className="hover:bg-slate-100"
+                >
+                   Siguiente
+                </Button>
+             </div>
+          )}
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl bg-white h-full min-h-[400px]">
              <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4">
