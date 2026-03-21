@@ -101,3 +101,26 @@ export async function createContactsBulk(contactsData: any[]) {
      return { error: e.message }
    }
 }
+
+/**
+ * Checks which of the given normalized phones already exist in the user's contacts.
+ * Returns an array of existing phone strings.
+ */
+export async function checkDuplicatePhones(phones: string[]): Promise<{ existing: string[], error?: string }> {
+   const supabase = createClient()
+   const { data: { user } } = await supabase.auth.getUser()
+   if (!user) return { existing: [], error: 'No autorizado' }
+
+   if (!phones.length) return { existing: [] }
+
+   const { data, error } = await supabase
+     .from('contacts')
+     .select('phone')
+     .eq('user_id', user.id)
+     .eq('is_active', true)
+     .in('phone', phones)
+
+   if (error) return { existing: [], error: error.message }
+
+   return { existing: (data || []).map(c => c.phone) }
+}

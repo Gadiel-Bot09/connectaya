@@ -4,9 +4,10 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
-import { Search, MapPin, Phone, Globe, Store, CheckCircle, Database, CheckCircle2, MessageCircle } from 'lucide-react'
-import { createContactsBulk } from '@/app/contacts/actions'
+import { Search, Phone, Globe, Store, CheckCircle, Database, MessageCircle, AlertTriangle, XCircle, CheckCircle2 } from 'lucide-react'
+import { createContactsBulk, checkDuplicatePhones } from '@/app/contacts/actions'
 import { validateWhatsAppNumbers } from '../actions'
+import { TagSelector } from '@/components/tag-selector'
 
 type Place = {
   place_id: string
@@ -14,10 +15,17 @@ type Place = {
   address: string
   rating?: number
   types: string[]
-  phone: string
+  phone: string | null
+  hasPhone: boolean
   website?: string
   lat: number
   lng: number
+}
+
+type ImportPreview = {
+  toImport: Place[]
+  duplicates: Place[]
+  noPhone: Place[]
 }
 
 export function MapsClient() {
@@ -35,8 +43,13 @@ export function MapsClient() {
   const [showOnlyWhatsApp, setShowOnlyWhatsApp] = useState(false)
   const [validationError, setValidationError] = useState<string | null>(null)
 
-  // Label for import
+  // Import label (TagSelector)
   const [importLabel, setImportLabel] = useState('')
+
+  // Import preview modal
+  const [preview, setPreview] = useState<ImportPreview | null>(null)
+  const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false)
+  const [importSuccess, setImportSuccess] = useState<string | null>(null)
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1)
@@ -53,6 +66,8 @@ export function MapsClient() {
     setSelected(new Set())
     setWhatsappStatus({})
     setCurrentPage(1)
+    setPreview(null)
+    setImportSuccess(null)
 
     try {
       const res = await fetch('/api/maps/search?query=' + encodeURIComponent(query) + '&limit=' + limit)
@@ -73,7 +88,7 @@ export function MapsClient() {
      setIsValidating(true)
      setValidationError(null)
      
-     const phones = results.map(r => r.phone)
+     const phones = results.filter(r => r.hasPhone).map(r => r.phone as string)
      const resAction = await validateWhatsAppNumbers(phones)
      
      if (resAction.error) {
@@ -92,23 +107,47 @@ export function MapsClient() {
     setSelected(newSel)
   }
 
-  const handleImport = async () => {
+  // Step 1: build preview (check duplicates) before actually importing
+  const handlePreviewImport = async () => {
     if (selected.size === 0) return
+    setIsCheckingDuplicates(true)
+    setError(null)
+
+    const selectedPlaces = results.filter(r => selected.has(r.place_id))
+
+    // Separate: has phone vs no phone
+    const withPhone = selectedPlaces.filter(r => r.hasPhone)
+    const noPhone = selectedPlaces.filter(r => !r.hasPhone)
+
+    // Check duplicates for those with phone
+    const normalizedPhones = withPhone.map(r => (r.phone as string).replace(/[^0-9]/g, ''))
+    const { existing } = await checkDuplicatePhones(normalizedPhones)
+    const existingSet = new Set(existing)
+
+    const duplicates = withPhone.filter(r => existingSet.has((r.phone as string).replace(/[^0-9]/g, '')))
+    const toImport = withPhone.filter(r => !existingSet.has((r.phone as string).replace(/[^0-9]/g, '')))
+
+    setPreview({ toImport, duplicates, noPhone })
+    setIsCheckingDuplicates(false)
+  }
+
+  // Step 2: confirm and import
+  const handleConfirmImport = async () => {
+    if (!preview || preview.toImport.length === 0) return
     setIsImporting(true)
     setError(null)
-    
-    // Build tags: always include 'maps_import', plus user's custom label if set
+
     const buildTags = (place: Place): string => {
-      const baseTags = ['maps_import', place.types[0] || 'negocio']
+      const baseTags = ['maps_import', place.types?.[0] || 'negocio']
       if (importLabel.trim()) baseTags.unshift(importLabel.trim())
       return baseTags.join(',')
     }
 
-    const contactsToImport = results.filter(r => selected.has(r.place_id)).map(r => ({
+    const contactsToImport = preview.toImport.map(r => ({
       name: r.name,
       phone: r.phone,
       company: r.name,
-      city: r.address ? r.address.split(',')[r.address.split(',').length - 2]?.trim() || r.address.split(',')[0] : '', 
+      city: r.address ? r.address.split(',')[r.address.split(',').length - 2]?.trim() || r.address.split(',')[0] : '',
       tags: buildTags(r)
     }))
 
@@ -116,8 +155,9 @@ export function MapsClient() {
     if (res?.error) {
       setError(res.error)
     } else {
-      alert(`¡${res?.count} contactos importados exitosamente!`)
+      setImportSuccess(`✅ ${res?.count ?? preview.toImport.length} contactos importados correctamente`)
       setSelected(new Set())
+      setPreview(null)
     }
     setIsImporting(false)
   }
@@ -125,7 +165,8 @@ export function MapsClient() {
   // Derived state for filtering
   const visibleResults = showOnlyWhatsApp 
      ? results.filter(r => {
-         const cleanPhone = r.phone.replace(/\D/g, '')
+         if (!r.hasPhone) return false
+         const cleanPhone = (r.phone as string).replace(/\D/g, '')
          return whatsappStatus[cleanPhone] === true
        })
      : results
@@ -212,29 +253,132 @@ export function MapsClient() {
                       <span><strong className="text-blue-600">{selected.size}</strong> seleccionados</span>
                       <Button variant="ghost" size="sm" onClick={() => setSelected(new Set(visibleResults.map(r => r.place_id)))} className="h-6 px-2 text-xs">Seleccionar filtrados</Button>
                    </div>
+                   
+                   {/* Label selector */}
                    <div className="mb-3">
                      <label className="text-xs font-semibold text-slate-600 block mb-1">Etiqueta personalizada</label>
-                     <input
-                       type="text"
+                     <TagSelector
                        value={importLabel}
-                       onChange={e => setImportLabel(e.target.value)}
-                       placeholder="Ej: Restaurantes Medellín, Barberías..."
-                       className="w-full h-9 border border-slate-200 rounded-md px-3 text-sm bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       onChange={setImportLabel}
+                       placeholder="Seleccionar o crear etiqueta..."
                      />
-                     <p className="text-xs text-slate-400 mt-1">Esta etiqueta se asignará a todos los contactos importados</p>
+                     <p className="text-xs text-slate-400 mt-1">Se asignará a todos los contactos importados</p>
                    </div>
+
+                   {importSuccess && (
+                     <div className="mb-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-sm text-emerald-700 font-medium">
+                       {importSuccess}
+                     </div>
+                   )}
+
                    <Button 
-                      onClick={handleImport} 
-                      disabled={selected.size === 0 || isImporting} 
+                      onClick={handlePreviewImport} 
+                      disabled={selected.size === 0 || isCheckingDuplicates || isImporting} 
                       className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold"
                    >
-                      {isImporting ? 'Importando...' : <><Database className="w-4 h-4 mr-2" /> Importar a Contactos</>}
+                      {isCheckingDuplicates ? 'Verificando duplicados...' : <><Database className="w-4 h-4 mr-2" /> Revisar e Importar</>}
                    </Button>
                 </div>
              </CardContent>
           </Card>
         )}
       </div>
+
+      {/* Import Preview Modal */}
+      {preview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h2 className="text-lg font-bold text-slate-900 mb-1">Resumen de importación</h2>
+              <p className="text-sm text-slate-500 mb-5">Revisa los contactos antes de confirmar</p>
+
+              {/* To Import */}
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                  <span className="font-semibold text-slate-800">
+                    {preview.toImport.length} contactos nuevos a importar
+                  </span>
+                </div>
+                {preview.toImport.length > 0 && (
+                  <div className="pl-7 flex flex-col gap-1 max-h-36 overflow-y-auto">
+                    {preview.toImport.map(p => (
+                      <div key={p.place_id} className="text-sm text-slate-700 flex justify-between">
+                        <span className="truncate">{p.name}</span>
+                        <span className="text-slate-400 text-xs ml-2 shrink-0">{p.phone}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Duplicates */}
+              {preview.duplicates.length > 0 && (
+                <div className="mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
+                    <span className="font-semibold text-slate-800">
+                      {preview.duplicates.length} ya existen en tu base (se saltarán)
+                    </span>
+                  </div>
+                  <div className="pl-7 flex flex-col gap-1 max-h-28 overflow-y-auto">
+                    {preview.duplicates.map(p => (
+                      <div key={p.place_id} className="text-sm text-slate-500 flex justify-between">
+                        <span className="truncate">{p.name}</span>
+                        <span className="text-slate-400 text-xs ml-2 shrink-0">{p.phone}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* No phone */}
+              {preview.noPhone.length > 0 && (
+                <div className="mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <XCircle className="w-5 h-5 text-red-400 shrink-0" />
+                    <span className="font-semibold text-slate-800">
+                      {preview.noPhone.length} sin número de teléfono (se saltarán)
+                    </span>
+                  </div>
+                  <div className="pl-7 flex flex-col gap-1 max-h-28 overflow-y-auto">
+                    {preview.noPhone.map(p => (
+                      <div key={p.place_id} className="text-sm text-slate-400 truncate">{p.name}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {importLabel && (
+                <div className="mb-5 p-3 bg-blue-50 border border-blue-100 rounded-lg text-sm text-blue-700">
+                  Etiqueta asignada: <strong>{importLabel}</strong>
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setPreview(null)}
+                  disabled={isImporting}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                  onClick={handleConfirmImport}
+                  disabled={preview.toImport.length === 0 || isImporting}
+                >
+                  {isImporting 
+                    ? 'Importando...' 
+                    : `Importar ${preview.toImport.length} contactos`
+                  }
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="w-full lg:w-2/3">
         {isLoading ? (
@@ -254,7 +398,7 @@ export function MapsClient() {
             ) : (
                 currentItems.map(place => {
                   const isSelected = selected.has(place.place_id)
-                  const cleanPhone = place.phone.replace(/\D/g, '')
+                  const cleanPhone = place.phone ? place.phone.replace(/\D/g, '') : ''
                   const hasWa = whatsappStatus[cleanPhone]
                   
                   return (
@@ -269,79 +413,51 @@ export function MapsClient() {
                         <h3 className="font-bold text-[15px] text-slate-900 pr-8 leading-tight">{place.name}</h3>
                         {place.rating && <p className="text-xs text-amber-500 font-bold mt-1">★ {place.rating} en Google</p>}
                         
-                        <div className="space-y-2.5 mt-4">
-                          <div className="flex items-center justify-between gap-2 text-sm text-slate-700 bg-slate-50 p-2 rounded-lg border border-slate-100 group-hover:bg-white transition-colors">
-                            <div className="flex items-center gap-2">
-                               <Phone className="w-4 h-4 shrink-0 text-slate-400" />
-                               <span className="font-mono font-medium">{place.phone}</span>
-                            </div>
-                            
-                            {/* Indicador WhatsApp */}
-                            {hasWa === true ? (
-                               <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">
-                                  <CheckCircle2 className="w-3 h-3" /> WA Activo
-                               </span>
-                            ) : hasWa === false ? (
-                               <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-rose-500 bg-rose-50 px-2 py-0.5 rounded-full">
-                                  Invalido
-                               </span>
-                            ) : null}
-                          </div>
-                          
-                          <div className="flex items-start gap-2 text-xs text-slate-500 pl-1">
-                            <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0 text-slate-300" />
-                            <span className="line-clamp-2 leading-relaxed">{place.address}</span>
-                          </div>
+                        <p className="text-xs text-slate-500 mt-2 flex items-start gap-1.5 leading-relaxed">
+                          <Store className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                          {place.address}
+                        </p>
 
-                          {place.website && (
-                            <div className="flex items-center gap-2 text-xs text-blue-600 pl-1">
-                              <Globe className="w-3.5 h-3.5 shrink-0" />
-                              <a href={place.website} target="_blank" rel="noreferrer" className="truncate hover:underline font-medium" onClick={e => e.stopPropagation()}>
-                                {new URL(place.website).hostname.replace('www.','')}
-                              </a>
-                            </div>
+                        <div className="flex items-center gap-2 mt-2">
+                          {place.hasPhone ? (
+                            <p className={`text-xs font-mono flex items-center gap-1 ${hasWa === true ? 'text-emerald-600' : hasWa === false ? 'text-slate-400' : 'text-slate-600'}`}>
+                              {hasWa === true ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Phone className="w-3 h-3" />}
+                              {place.phone}
+                            </p>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                              <AlertTriangle className="w-3 h-3" /> Sin teléfono
+                            </span>
                           )}
                         </div>
+                        
+                        {place.website && (
+                          <a href={place.website} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-[11px] text-blue-500 hover:underline flex items-center gap-1 mt-1.5">
+                            <Globe className="w-3 h-3" /> {new URL(place.website).hostname}
+                          </a>
+                        )}
                       </CardContent>
                     </Card>
                   )
                 })
             )}
-          </div>
-          
-          {totalPages > 1 && (
-             <div className="mt-8 flex items-center justify-center gap-4">
-                <Button 
-                   variant="outline" 
-                   size="sm" 
-                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
-                   disabled={currentPage === 1}
-                   className="hover:bg-slate-100"
-                >
-                   Anterior
-                </Button>
-                <div className="text-sm font-medium text-slate-600 bg-white px-4 py-1.5 rounded-full border border-slate-200 shadow-sm">
-                   Página {currentPage} de {totalPages}
-                </div>
-                <Button 
-                   variant="outline" 
-                   size="sm" 
-                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
-                   disabled={currentPage === totalPages}
-                   className="hover:bg-slate-100"
-                >
-                   Siguiente
-                </Button>
-             </div>
-          )}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center gap-2 mt-6">
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Anterior</Button>
+                <span className="text-sm text-slate-600 px-2">Página {currentPage} de {totalPages}</span>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Siguiente</Button>
+              </div>
+            )}
           </>
         ) : (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl bg-white h-full min-h-[400px]">
-             <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                <Store className="w-10 h-10 text-slate-300" />
-             </div>
-            <p className="text-lg font-bold text-slate-700">Explorador B2B</p>
-            <p className="text-sm mt-1 max-w-sm text-center">Ingresa una búsqueda (ej. "Odontologos en Madrid") para rastrear la información de contacto pública en Google Places.</p>
+          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border-2 border-dashed border-slate-200">
+            <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-4">
+              <Search className="w-8 h-8 text-blue-400" />
+            </div>
+            <h3 className="font-semibold text-slate-800 mb-1">Busca negocios en Google Maps</h3>
+            <p className="text-sm text-slate-400 text-center max-w-xs">Escribe el tipo de negocio y la ciudad. Ej: "Restaurantes en Bogotá"</p>
           </div>
         )}
       </div>

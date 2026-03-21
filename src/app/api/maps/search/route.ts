@@ -61,14 +61,14 @@ export async function GET(request: Request) {
          lat: p.location?.latitude,
          lng: p.location?.longitude,
          phone: p.internationalPhoneNumber || p.nationalPhoneNumber || null,
+         hasPhone: !!(p.internationalPhoneNumber || p.nationalPhoneNumber),
          website: p.websiteUri || null
       }))
 
-      // Filtering valid phones and deduplicating
-      const validPlaces = results.filter((p: any) => p.phone)
-      for (const vp of validPlaces) {
-         if (!allValidPlaces.find(exist => exist.place_id === vp.place_id)) {
-            allValidPlaces.push(vp)
+      // Include ALL results (with and without phone), deduplicate by place_id
+      for (const place of results) {
+         if (!allValidPlaces.find((exist: any) => exist.place_id === place.place_id)) {
+            allValidPlaces.push(place)
          }
       }
 

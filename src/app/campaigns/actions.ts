@@ -9,19 +9,38 @@ export async function getCampaignFormData() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('No autorizado')
 
-  const [instancesRes, contactsRes] = await Promise.all([
+  const [instancesRes, contactsRes, labelsRes] = await Promise.all([
     supabase.from('whatsapp_instances').select('id, instance_name, display_name').eq('user_id', user.id).eq('status', 'open'),
-    supabase.from('contacts').select('tags').eq('user_id', user.id)
+    supabase.from('contacts').select('tags').eq('user_id', user.id).eq('is_active', true),
+    supabase.from('labels').select('id, name, color').eq('user_id', user.id).order('name')
   ])
 
-  const allTags = new Set<string>()
+  // Build contact count per tag
+  const countMap: Record<string, number> = {}
   contactsRes.data?.forEach(c => {
-     if (c.tags) c.tags.forEach((t: string) => allTags.add(t))
+    (c.tags || []).forEach((t: string) => {
+      countMap[t] = (countMap[t] || 0) + 1
+    })
   })
+
+  const labels = labelsRes.data || []
+  // Merge labels with counts, also add any tags that exist in contacts but not as labels yet
+  const tagSet = new Set(labels.map((l: any) => l.name))
+  Object.keys(countMap).forEach(tag => {
+    if (!tagSet.has(tag)) {
+      labels.push({ id: tag, name: tag, color: '#94A3B8' })
+    }
+  })
+
+  const tagsWithCount = labels
+    .filter((l: any) => countMap[l.name])
+    .map((l: any) => ({ name: l.name, color: l.color, count: countMap[l.name] || 0 }))
+    .sort((a: any, b: any) => a.name.localeCompare(b.name))
 
   return {
      instances: instancesRes.data || [],
-     tags: Array.from(allTags)
+     tags: tagsWithCount.map((t: any) => t.name),   // keep backward compat
+     tagsWithCount,
   }
 }
 

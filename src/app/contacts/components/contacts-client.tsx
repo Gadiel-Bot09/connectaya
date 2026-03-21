@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Trash2, Search, Upload } from 'lucide-react'
 import { createContact, deleteContact } from '../actions'
 import { ImportCsvModal } from './import-csv-modal'
+import { TagSelector } from '@/components/tag-selector'
 
 type Contact = {
   id: string
@@ -19,17 +20,15 @@ type Contact = {
 }
 
 export function ContactsClient({ initialContacts }: { initialContacts: Contact[] }) {
-  // Extract unique tags from all existing contacts for autocomplete suggestions
-  const existingTags = Array.from(
-    new Set(initialContacts.flatMap(c => c.tags || []))
-  ).sort()
   const [contacts, setContacts] = useState(initialContacts)
   const [search, setSearch] = useState('')
   const [isOpen, setIsOpen] = useState(false)
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
+  // Tag filter and new contact tag
   const [tagFilter, setTagFilter] = useState('')
+  const [newContactTag, setNewContactTag] = useState('')
 
   const filtered = contacts.filter(c => {
     const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search)
@@ -41,6 +40,8 @@ export function ContactsClient({ initialContacts }: { initialContacts: Contact[]
     e.preventDefault()
     setIsLoading(true)
     const formData = new FormData(e.currentTarget)
+    // Inject the selected tag from the TagSelector state
+    if (newContactTag) formData.set('tags', newContactTag)
     const res = await createContact(formData)
     
     if (res?.error) {
@@ -48,6 +49,7 @@ export function ContactsClient({ initialContacts }: { initialContacts: Contact[]
       setIsLoading(false)
     } else {
       setIsOpen(false)
+      setNewContactTag('')
       window.location.reload()
     }
   }
@@ -76,18 +78,23 @@ export function ContactsClient({ initialContacts }: { initialContacts: Contact[]
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
             />
           </div>
-          {existingTags.length > 0 && (
-            <select
-              value={tagFilter}
-              onChange={e => setTagFilter(e.target.value)}
-              className="h-10 border border-slate-200 rounded-md px-3 text-sm bg-white text-slate-700 min-w-[160px]"
+          {tagFilter && (
+            <button
+              type="button"
+              onClick={() => setTagFilter('')}
+              className="text-xs text-blue-600 hover:underline whitespace-nowrap"
             >
-              <option value="">Todas las etiquetas</option>
-              {existingTags.map(t => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
+              Limpiar filtro
+            </button>
           )}
+          <div className="min-w-[180px]">
+            <TagSelector
+              value={tagFilter}
+              onChange={setTagFilter}
+              placeholder="Filtrar por etiqueta..."
+              showCount
+            />
+          </div>
         </div>
         
         <div className="flex gap-2 w-full sm:w-auto">
@@ -112,17 +119,12 @@ export function ContactsClient({ initialContacts }: { initialContacts: Contact[]
                   <Input name="city" placeholder="Ciudad (opcional)" />
                   <Input name="email" type="email" placeholder="Email (opcional)" />
                   <div>
-                    <Input 
-                      name="tags" 
-                      placeholder="Etiqueta (ej: Restaurantes, Barberías)" 
-                      list="tag-suggestions"
+                    <label className="text-xs font-semibold text-slate-600 block mb-1">Etiqueta</label>
+                    <TagSelector
+                      value={newContactTag}
+                      onChange={setNewContactTag}
+                      placeholder="Seleccionar o crear etiqueta..."
                     />
-                    {existingTags.length > 0 && (
-                      <datalist id="tag-suggestions">
-                        {existingTags.map(t => <option key={t} value={t} />)}
-                      </datalist>
-                    )}
-                    <p className="text-xs text-slate-400 mt-1">Puedes escribir una etiqueta nueva o seleccionar una existente</p>
                   </div>
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>

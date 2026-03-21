@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -123,21 +123,36 @@ export function WizardClient({ formData }: { formData: any }) {
                            <span className="font-medium text-slate-800">Solo a los que tengan estas etiquetas:</span>
                          </div>
                          {data.target_type === 'tags' && (
-                           <div className="pl-7 flex flex-wrap gap-2 mt-2">
-                             {formData.tags.map((tag: string) => (
-                               <label key={tag} className="flex items-center gap-1.5 bg-white border border-slate-200 px-3 py-1.5 rounded-md text-sm cursor-pointer hover:border-blue-300">
+                           <div className="pl-7 flex flex-col gap-2 mt-2">
+                             {(formData.tagsWithCount || []).length === 0 && (
+                               <span className="text-slate-400 text-sm">No hay etiquetas con contactos asignados.</span>
+                             )}
+                             {(formData.tagsWithCount || formData.tags.map((t: string) => ({ name: t, count: 0, color: '#94A3B8' }))).map((tag: any) => (
+                               <label key={tag.name} className="flex items-center gap-3 bg-white border border-slate-200 px-3 py-2.5 rounded-lg text-sm cursor-pointer hover:border-blue-300 hover:bg-blue-50/50 transition-colors">
                                  <input 
                                    type="checkbox" 
-                                   className="rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5"
-                                   checked={data.selected_tags.includes(tag)}
+                                   className="rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 shrink-0"
+                                   checked={data.selected_tags.includes(tag.name)}
                                    onChange={(e: any) => {
-                                      if (e.target.checked) updateData({ selected_tags: [...data.selected_tags, tag] })
-                                      else updateData({ selected_tags: data.selected_tags.filter(t => t !== tag) })
+                                      if (e.target.checked) updateData({ selected_tags: [...data.selected_tags, tag.name] })
+                                      else updateData({ selected_tags: data.selected_tags.filter(t => t !== tag.name) })
                                    }}
-                                 /> {tag}
+                                 />
+                                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: tag.color || '#94A3B8' }} />
+                                 <span className="flex-1 font-medium text-slate-800">{tag.name}</span>
+                                 <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium shrink-0">
+                                   {tag.count ?? 0} contactos
+                                 </span>
                                </label>
                              ))}
-                             {formData.tags.length === 0 && <span className="text-slate-400 text-sm">No hay etiquetas creadas en tus contactos.</span>}
+                             {data.selected_tags.length > 0 && (
+                               <p className="text-xs text-blue-600 font-medium mt-1">
+                                 ✓ {data.selected_tags.reduce((acc: number, t: string) => {
+                                   const found = (formData.tagsWithCount || []).find((tw: any) => tw.name === t)
+                                   return acc + (found?.count || 0)
+                                 }, 0)} contactos seleccionados en total
+                               </p>
+                             )}
                            </div>
                          )}
                       </label>
