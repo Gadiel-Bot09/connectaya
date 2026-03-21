@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation'
 import { Sidebar } from '@/components/layout/sidebar'
 import { Bell, Search, LogOut } from 'lucide-react'
+import { createClient } from '@/utils/supabase/client'
 
 export function AppLayoutWrapper({ children, userInitial, userName, userRole }: { children: React.ReactNode, userInitial: string, userName: string, userRole: string }) {
   const pathname = usePathname()
@@ -12,6 +13,12 @@ export function AppLayoutWrapper({ children, userInitial, userName, userRole }: 
   // Ocultar barra en login/register siempre. Ocultar en '/' SOLO si no ha iniciado sesión.
   const authRoutes = ['/login', '/register', '/reset-password', '/update-password']
   const isPublicRoute = authRoutes.includes(pathname) || (pathname === '/' && !isAuthenticated)
+
+  const handleSignout = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    window.location.href = '/login'
+  }
 
   if (isPublicRoute) {
     return <>{children}</>
@@ -43,11 +50,9 @@ export function AppLayoutWrapper({ children, userInitial, userName, userRole }: 
                  <div className="w-10 h-10 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 font-extrabold shadow-sm">
                    {userInitial}
                  </div>
-                 <form action="/auth/signout" method="post" className="ml-2">
-                   <button type="submit" className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Cerrar sesión">
-                      <LogOut className="w-5 h-5" />
-                   </button>
-                 </form>
+                 <button onClick={handleSignout} className="ml-2 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer" title="Cerrar sesión">
+                    <LogOut className="w-5 h-5" />
+                 </button>
               </div>
            </div>
         </header>
