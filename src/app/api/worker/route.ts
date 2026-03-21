@@ -234,16 +234,37 @@ export async function GET(request: Request) {
     })
 
     // Update campaign sent counter
+    const newSentCount = campaign.sent_count + 1
+    const remaining = campaign.total_contacts - newSentCount
+
     await supabase
       .from('campaigns')
-      .update({ sent_count: campaign.sent_count + 1 })
+      .update({ sent_count: newSentCount })
       .eq('id', campaign.id)
+
+    // If this was the last message, complete the campaign IMMEDIATELY
+    // Don't wait for next worker call — prevents ACTIVE hijacking of future campaigns
+    if (remaining <= 0) {
+      await supabase
+        .from('campaigns')
+        .update({ status: 'completed', completed_at: new Date().toISOString() })
+        .eq('id', campaign.id)
+
+      return NextResponse.json({
+        message: 'Message sent',
+        phone: cleanPhone,
+        campaign: campaign.name,
+        remaining: 0,
+        done: true,
+        note: 'Campaign completed — all messages sent',
+      })
+    }
 
     return NextResponse.json({
       message: 'Message sent',
       phone: cleanPhone,
       campaign: campaign.name,
-      remaining: campaign.total_contacts - campaign.sent_count - 1,
+      remaining,
     })
   } catch (err: any) {
     // Mark failed — first attempt returns to 'pending' for one retry, second attempt is permanent failure
