@@ -13,11 +13,16 @@ export async function createContact(formData: FormData) {
    const company = formData.get('company') as string
    const city = formData.get('city') as string
    const email = formData.get('email') as string
+   const tagsRaw = formData.get('tags') as string
 
    if (!name || !phone) return { error: 'Nombre y teléfono son obligatorios' }
 
    // Basic E.164 sanitization (keep only digits)
    const cleanPhone = phone.replace(/[^0-9]/g, '')
+   // Parse comma-separated tags into array, filter empty strings
+   const tags = tagsRaw
+     ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean)
+     : []
    
    try {
      const { error } = await supabase.from('contacts').insert({
@@ -26,7 +31,8 @@ export async function createContact(formData: FormData) {
        phone: cleanPhone,
        company: company || null,
        city: city || null,
-       email: email || null
+       email: email || null,
+       tags,
      })
 
      if (error) {

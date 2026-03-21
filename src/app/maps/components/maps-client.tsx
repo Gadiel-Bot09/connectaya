@@ -35,6 +35,9 @@ export function MapsClient() {
   const [showOnlyWhatsApp, setShowOnlyWhatsApp] = useState(false)
   const [validationError, setValidationError] = useState<string | null>(null)
 
+  // Label for import
+  const [importLabel, setImportLabel] = useState('')
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 20
@@ -94,12 +97,19 @@ export function MapsClient() {
     setIsImporting(true)
     setError(null)
     
+    // Build tags: always include 'maps_import', plus user's custom label if set
+    const buildTags = (place: Place): string => {
+      const baseTags = ['maps_import', place.types[0] || 'negocio']
+      if (importLabel.trim()) baseTags.unshift(importLabel.trim())
+      return baseTags.join(',')
+    }
+
     const contactsToImport = results.filter(r => selected.has(r.place_id)).map(r => ({
       name: r.name,
       phone: r.phone,
       company: r.name,
       city: r.address ? r.address.split(',')[r.address.split(',').length - 2]?.trim() || r.address.split(',')[0] : '', 
-      tags: 'maps_import,' + (r.types[0] || 'negocio')
+      tags: buildTags(r)
     }))
 
     const res = await createContactsBulk(contactsToImport)
@@ -201,6 +211,17 @@ export function MapsClient() {
                    <div className="flex justify-between items-center text-sm font-medium text-slate-700 mb-3">
                       <span><strong className="text-blue-600">{selected.size}</strong> seleccionados</span>
                       <Button variant="ghost" size="sm" onClick={() => setSelected(new Set(visibleResults.map(r => r.place_id)))} className="h-6 px-2 text-xs">Seleccionar filtrados</Button>
+                   </div>
+                   <div className="mb-3">
+                     <label className="text-xs font-semibold text-slate-600 block mb-1">Etiqueta personalizada</label>
+                     <input
+                       type="text"
+                       value={importLabel}
+                       onChange={e => setImportLabel(e.target.value)}
+                       placeholder="Ej: Restaurantes Medellín, Barberías..."
+                       className="w-full h-9 border border-slate-200 rounded-md px-3 text-sm bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                     />
+                     <p className="text-xs text-slate-400 mt-1">Esta etiqueta se asignará a todos los contactos importados</p>
                    </div>
                    <Button 
                       onClick={handleImport} 
