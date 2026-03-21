@@ -16,6 +16,10 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 30
 
 export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  // force=true bypasses the hour restriction — used by manual 'Forzar Envío' button
+  const forceMode = searchParams.get('force') === 'true'
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
@@ -59,15 +63,19 @@ export async function GET(request: Request) {
     return NextResponse.json({ message: 'Instance is not connected', id: campaign.id })
   }
 
-  // 4. Check allowed sending hours (Colombia timezone)
+  // 4. Check allowed sending hours (Colombia timezone) — SKIP if force mode
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/Bogota',
     hour: 'numeric',
     hour12: false,
   })
   const currentHour = parseInt(formatter.format(new Date()), 10)
-  if (currentHour < campaign.allowed_start_hour || currentHour > campaign.allowed_end_hour) {
-    return NextResponse.json({ message: 'Outside of allowed hours', hour: currentHour })
+  if (!forceMode && (currentHour < campaign.allowed_start_hour || currentHour > campaign.allowed_end_hour)) {
+    return NextResponse.json({ 
+      message: `Outside of allowed hours — campaign allows ${campaign.allowed_start_hour}:00-${campaign.allowed_end_hour}:00, now: ${currentHour}:00 Colombia time. Use Forzar Envío to override.`,
+      blocked: 'hours',
+      currentHour 
+    })
   }
 
   // 5. Recover any stuck 'sending' messages from dead/timed-out workers (older than 5 min)
