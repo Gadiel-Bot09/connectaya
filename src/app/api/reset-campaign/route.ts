@@ -56,12 +56,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: resetError.message }, { status: 500 })
   }
 
-  // Make sure the campaign is active
+  // Re-activate only if PAUSED (never re-open a completed campaign!)
   await supabase
     .from('campaigns')
     .update({ status: 'active' })
     .eq('id', campaignId)
-    .in('status', ['completed', 'paused'])
+    .eq('status', 'paused')
 
   return NextResponse.json({
     success: true,

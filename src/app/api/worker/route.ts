@@ -44,11 +44,22 @@ export async function GET(request: Request) {
     .eq('status', 'scheduled')
     .lte('scheduled_at', new Date().toISOString())
 
-  // 2. Fetch one active campaign (oldest first)
+  // 2. Auto-complete any stale 'active' campaigns that already finished sending
+  // This fixes campaigns that got stuck in ACTIVE state
+  await supabase
+    .from('campaigns')
+    .update({ status: 'completed', completed_at: new Date().toISOString() })
+    .eq('status', 'active')
+    .gt('total_contacts', 0)
+    .filter('sent_count', 'gte', 'total_contacts')
+
+  // 3. Fetch one active campaign where there are still messages to send
+  // Only picks campaigns where sent_count < total_contacts (DB-level protection)
   const { data: campaigns } = await supabase
     .from('campaigns')
     .select('*, whatsapp_instances(instance_name, status)')
     .eq('status', 'active')
+    .or('total_contacts.eq.0,sent_count.lt.total_contacts')
     .order('created_at', { ascending: true })
     .limit(1)
 
@@ -57,20 +68,6 @@ export async function GET(request: Request) {
   }
 
   const campaign = campaigns[0]
-
-  // FAST COMPLETION: If all messages already sent, close this campaign immediately
-  // This prevents stuck ACTIVE campaigns from hijacking new campaign worker calls
-  if (campaign.total_contacts > 0 && campaign.sent_count >= campaign.total_contacts) {
-    await supabase
-      .from('campaigns')
-      .update({ status: 'completed', completed_at: new Date().toISOString() })
-      .eq('id', campaign.id)
-    return NextResponse.json({ 
-      message: 'Campaign auto-completed: all messages were already sent',
-      id: campaign.id,
-      done: true
-    })
-  }
 
   if (campaign.whatsapp_instances?.status !== 'open') {
     return NextResponse.json({ message: 'Instance is not connected', id: campaign.id })
