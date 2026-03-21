@@ -75,7 +75,7 @@ export default async function HistoryPage() {
                      <Link href={`/campaigns/reports/${c.id}`}>
                         <Button variant="outline" size="sm" className="hover:bg-blue-50 hover:text-blue-600 border-slate-200">Ver Reporte</Button>
                      </Link>
-                     <ManualTrigger active={c.status === 'active'} />
+                      <ManualTrigger active={c.status === 'active'} campaignId={c.id} />
                      {c.status === 'active' && (
                         <form action={pauseCampaign.bind(null, c.id)}>
                            <Button type="submit" variant="ghost" size="sm" className="text-red-500 hover:bg-red-50 hover:text-red-700">Cancelar</Button>

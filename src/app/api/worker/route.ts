@@ -225,14 +225,15 @@ export async function GET(request: Request) {
       remaining: campaign.total_contacts - campaign.sent_count - 1,
     })
   } catch (err: any) {
-    // Mark failed
+    // Mark failed — first attempt returns to 'pending' for one retry, second attempt is permanent failure
+    const newAttempts = item.attempts + 1
     await supabase
       .from('message_queue')
       .update({
-        status: item.attempts + 1 >= 2 ? 'failed' : 'pending',
+        status: newAttempts >= 2 ? 'failed' : 'pending',
         error_message: err.message,
         updated_at: new Date().toISOString(),
-        attempts: item.attempts + 1,
+        attempts: newAttempts,
       })
       .eq('id', item.id)
 
