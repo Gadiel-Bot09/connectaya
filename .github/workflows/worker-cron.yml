@@ -2,15 +2,95 @@ name: Campaign Worker Queue
 
 on:
   schedule:
-    # Runs automatically every 5 minutes (GitHub Actions shortest reliable interval)
+    # Runs every 5 minutes — each run loops for the full window processing messages
     - cron: '*/5 * * * *'
-  workflow_dispatch: # Allows you to run it manually from the Actions tab if you want
+  workflow_dispatch: # Manual trigger from GitHub Actions tab
 
 jobs:
-  ping-worker:
+  process-campaign-queue:
     runs-on: ubuntu-latest
+    # Allow the job to run for up to 30 minutes per cycle
+    timeout-minutes: 30
+
     steps:
-      - name: Ping API Worker
+      - name: Process campaign messages with anti-spam delays
+        env:
+          WORKER_URL: ${{ secrets.WORKER_URL }}
         run: |
-          echo "Pinging ConnectaYa worker..."
-          curl -sS -o /dev/null -w "%{http_code}" https://connectaya.sinuhub.com/api/worker
+          echo "🚀 ConnectaYa Worker — $(date '+%Y-%m-%d %H:%M:%S')"
+          echo "Worker URL: ${WORKER_URL}"
+
+          # ---------------------------------------------------------------
+          # STRATEGY: Call the stateless /api/worker endpoint repeatedly.
+          # Each call sends ONE message (zero internal sleep on Vercel).
+          # THIS script manages the 45-90 second anti-spam delay between calls.
+          # We loop up to 20 calls maximum per 5-minute window to avoid
+          # overlap with the next scheduled run.
+          # ---------------------------------------------------------------
+
+          MAX_CALLS=20          # Max messages per 5-minute window
+          DELAY_MIN=50          # Minimum seconds between messages (antibloqueo)
+          DELAY_MAX=80          # Maximum seconds between messages (antibloqueo)
+          CALLS_MADE=0
+          STOP=false
+
+          while [ $CALLS_MADE -lt $MAX_CALLS ] && [ "$STOP" = "false" ]; do
+
+            echo ""
+            echo "📨 Call $((CALLS_MADE + 1)) of $MAX_CALLS — Invoking worker..."
+
+            RESPONSE=$(curl -sS --max-time 30 \
+              -w "\n__HTTP_STATUS_%{http_code}__" \
+              "$WORKER_URL/api/worker")
+
+            HTTP_CODE=$(echo "$RESPONSE" | grep -o '__HTTP_STATUS_[0-9]*__' | grep -o '[0-9]*')
+            BODY=$(echo "$RESPONSE" | sed 's/__HTTP_STATUS_[0-9]*__//')
+
+            echo "   HTTP Status: $HTTP_CODE"
+            echo "   Response:    $BODY"
+
+            # Stop conditions — campaign done or nothing to process
+            if echo "$BODY" | grep -q '"No active campaigns"'; then
+              echo "✅ No active campaigns. Worker done."
+              STOP=true
+              break
+            fi
+
+            if echo "$BODY" | grep -q '"done":true'; then
+              echo "✅ Campaign completed! Worker done."
+              STOP=true
+              break
+            fi
+
+            if echo "$BODY" | grep -q '"Outside of allowed hours"'; then
+              echo "🌙 Outside sending hours. Stopping."
+              STOP=true
+              break
+            fi
+
+            if echo "$BODY" | grep -q '"Instance is not connected"'; then
+              echo "❌ WhatsApp instance disconnected. Stopping."
+              STOP=true
+              break
+            fi
+
+            # If error response stop to avoid hammering
+            if [ "$HTTP_CODE" != "200" ]; then
+              echo "⚠️  Unexpected HTTP $HTTP_CODE. Stopping loop."
+              STOP=true
+              break
+            fi
+
+            CALLS_MADE=$((CALLS_MADE + 1))
+
+            if [ $CALLS_MADE -lt $MAX_CALLS ] && [ "$STOP" = "false" ]; then
+              # Random delay between messages — antibloqueo WhatsApp
+              SLEEP_TIME=$(shuf -i ${DELAY_MIN}-${DELAY_MAX} -n 1)
+              echo "   ⏳ Anti-spam delay: ${SLEEP_TIME} seconds..."
+              sleep $SLEEP_TIME
+            fi
+
+          done
+
+          echo ""
+          echo "🏁 Worker cycle complete. Messages sent this run: $CALLS_MADE"

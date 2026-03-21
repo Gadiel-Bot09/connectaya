@@ -4,38 +4,43 @@ import { createClient as createServerClient } from '@/utils/supabase/server'
 import OpenAI from 'openai'
 import { sendCampaignCompletedEmail } from '@/utils/email'
 
-// This endpoint should be triggered by a Cron Job every few minutes or manually via a background process
-export const maxDuration = 300 // Set max duration if deployed on Vercel Pro (5 mins) 
-export const dynamic = 'force-dynamic' // ABSOLUTELY CRITICAL: Prevent Vercel from caching the GET responses since it doesn't unconditionally use cookies().
+// STATELESS SINGLE-MESSAGE WORKER
+// ----------------------------------------------------------------------
+// Each HTTP call processes EXACTLY ONE message and returns immediately.
+// This keeps Vercel execution under their 10-second free plan limit.
+// Anti-spam delays (45-90s) are managed EXTERNALLY by GitHub Actions,
+// which calls this endpoint repeatedly with sleep() between each call.
+// ----------------------------------------------------------------------
+export const dynamic = 'force-dynamic'
+// maxDuration reduced to 30s — plenty for one AI call + one Evolution POST
+export const maxDuration = 30
 
 export async function GET(request: Request) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  
-  let supabase;
+
+  let supabase: any
   if (serviceKey) {
-     // Cron Environment / Local environment with Service_Role configured - Bypasses RLS absolutely
-     supabase = createJsClient(supabaseUrl, serviceKey)
+    supabase = createJsClient(supabaseUrl, serviceKey)
   } else {
-     // Fallback for manual executions using specific user's login cookies if Service Key is somehow missing
-     supabase = createServerClient()
+    supabase = createServerClient()
   }
 
   const EVOLUTION_URL = (process.env.NEXT_PUBLIC_EVOLUTION_URL || '').trim().replace(/\/+$/, '')
   const GLOBAL_API_KEY = process.env.EVOLUTION_GLOBAL_API_KEY
 
   if (!EVOLUTION_URL || !GLOBAL_API_KEY) {
-     return NextResponse.json({ error: 'Evolution API not configured' }, { status: 500 })
+    return NextResponse.json({ error: 'Evolution API not configured' }, { status: 500 })
   }
 
-  // 1. Mark scheduled campaigns that are due as 'active'
+  // 1. Activate any scheduled campaigns that are now due
   await supabase
     .from('campaigns')
     .update({ status: 'active', started_at: new Date().toISOString() })
     .eq('status', 'scheduled')
     .lte('scheduled_at', new Date().toISOString())
 
-  // 2. Fetch one active campaign
+  // 2. Fetch one active campaign (oldest first)
   const { data: campaigns } = await supabase
     .from('campaigns')
     .select('*, whatsapp_instances(instance_name, status)')
@@ -49,32 +54,32 @@ export async function GET(request: Request) {
 
   const campaign = campaigns[0]
 
-  // Check instance status
+  // 3. Check WhatsApp instance is connected
   if (campaign.whatsapp_instances?.status !== 'open') {
     return NextResponse.json({ message: 'Instance is not connected', id: campaign.id })
   }
 
-  // Check allowed hours using Colombia Timezone
-  const formatter = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Bogota', hour: 'numeric', hour12: false })
+  // 4. Check allowed sending hours (Colombia timezone)
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Bogota',
+    hour: 'numeric',
+    hour12: false,
+  })
   const currentHour = parseInt(formatter.format(new Date()), 10)
-  
   if (currentHour < campaign.allowed_start_hour || currentHour > campaign.allowed_end_hour) {
-    return NextResponse.json({ message: 'Outside of allowed hours' })
+    return NextResponse.json({ message: 'Outside of allowed hours', hour: currentHour })
   }
 
-  // 3. Fetch up to a batch of pending messages (e.g., 5 to keep request under 5 mins with delays)
-  const batchSize = 5
-  let messagesSentThisRun = 0
-
-  // Recover stuck 'sending' messages from dead workers safely (older than 5 minutes)
+  // 5. Recover any stuck 'sending' messages from dead/timed-out workers (older than 5 min)
   const fiveMinsAgo = new Date(Date.now() - 5 * 60000).toISOString()
   await supabase
     .from('message_queue')
-    .update({ status: 'failed', error_message: 'Timeout del servidor cruzado' })
+    .update({ status: 'failed', error_message: 'Worker timeout recovery' })
     .eq('campaign_id', campaign.id)
     .eq('status', 'sending')
     .lt('updated_at', fiveMinsAgo)
-  
+
+  // 6. Fetch exactly ONE pending message (stateless — GitHub Actions loops the rest)
   const { data: queue } = await supabase
     .from('message_queue')
     .select('*, contacts(*)')
@@ -83,137 +88,160 @@ export async function GET(request: Request) {
     .lt('attempts', 2)
     .order('attempts', { ascending: true })
     .order('created_at', { ascending: true })
-    .limit(batchSize)
+    .limit(1)
 
+  // 7. If no messages left → campaign is complete
   if (!queue || queue.length === 0) {
-     // Mark campaign completed safely
-     await supabase.from('campaigns').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', campaign.id)
-     
-     // Send Email in try catch block to prevent fatal crashes blocking the completion process
-     try {
-       const { data: userAuth, error: authErr } = await supabase.auth.admin.getUserById(campaign.user_id)
-       if (!authErr && userAuth?.user?.email) {
-           const { count: sentCount } = await supabase.from('message_queue').select('*', { count: 'exact', head: true }).eq('campaign_id', campaign.id).eq('status', 'sent')
-           const { count: failedCount } = await supabase.from('message_queue').select('*', { count: 'exact', head: true }).eq('campaign_id', campaign.id).eq('status', 'failed')
-           await sendCampaignCompletedEmail(userAuth.user.email, campaign.name || 'Sin Nombre', sentCount || 0, failedCount || 0)
-       }
-     } catch (e) {
-       console.error("Silent error dispatching complete email", e)
-     }
+    await supabase
+      .from('campaigns')
+      .update({ status: 'completed', completed_at: new Date().toISOString() })
+      .eq('id', campaign.id)
 
-     return NextResponse.json({ message: 'Campaign completed', id: campaign.id, sent: 0 })
+    // Notify user by email
+    try {
+      const { data: userAuth } = await supabase.auth.admin.getUserById(campaign.user_id)
+      if (userAuth?.user?.email) {
+        const { count: sentCount } = await supabase
+          .from('message_queue')
+          .select('*', { count: 'exact', head: true })
+          .eq('campaign_id', campaign.id)
+          .eq('status', 'sent')
+        const { count: failedCount } = await supabase
+          .from('message_queue')
+          .select('*', { count: 'exact', head: true })
+          .eq('campaign_id', campaign.id)
+          .eq('status', 'failed')
+        await sendCampaignCompletedEmail(
+          userAuth.user.email,
+          campaign.name || 'Sin Nombre',
+          sentCount || 0,
+          failedCount || 0
+        )
+      }
+    } catch (e) {
+      console.error('Silent error sending completion email', e)
+    }
+
+    return NextResponse.json({ message: 'Campaign completed', id: campaign.id, done: true })
   }
 
-  // BULK LOCK QUEUE TO PREVENT CONCURRENCY RACE CONDITIONS (Multiple Forzar Envío Clicks)
-  const queueIds = queue.map(q => q.id)
-  await supabase.from('message_queue').update({ status: 'sending', updated_at: new Date().toISOString() }).in('id', queueIds)
+  const item = queue[0]
 
-  // Helper random
-  const randomBetween = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1) + min)
-  const sleep = (ms: number) => new Promise(res => setTimeout(res, ms))
+  // 8. Lock this single message to prevent race conditions
+  await supabase
+    .from('message_queue')
+    .update({ status: 'sending', updated_at: new Date().toISOString() })
+    .eq('id', item.id)
 
-  let aiClient: OpenAI | null = null
-  if (campaign.ai_enabled) {
-     const apiKey = process.env.OPENAI_API_KEY || process.env.NEXT_PUBLIC_OPENAI_API_KEY
-     if (apiKey) aiClient = new OpenAI({ apiKey })
-  }
+  // 9. Personalize message (use cached version if already generated)
+  let finalMessage = item.personalized_message
+  if (!finalMessage) {
+    let msg = campaign.template_message
+      .replace(/{{name}}/gi, item.contacts?.name || '')
+      .replace(/{{company}}/gi, item.contacts?.company || '')
 
-  for (const item of queue) {
-     // Pause every N logic (very simplified for stateless runs: we check modulo on total sent count + 1)
-     const currentSent = campaign.sent_count + messagesSentThisRun
-     if (currentSent > 0 && currentSent % campaign.pause_every_n === 0) {
-         // Long pause logic (Could implement external database state for large distributed architecture)
-     }
-
-     // Mark current attempt locally
-
-     // Personalize message
-     let finalMessage = item.personalized_message
-     if (!finalMessage) {
-        let msg = campaign.template_message.replace(/{{name}}/gi, item.contacts.name).replace(/{{company}}/gi, item.contacts.company || '')
-        
-        if (aiClient && campaign.ai_enabled) {
-           try {
-             const prompt = `Tono: ${campaign.ai_tone}. Contexto: ${campaign.ai_context}. Reescribe: "${msg}". Devuelve solo el resultado final directo.`
-             const comp = await aiClient.chat.completions.create({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: prompt }] })
-             msg = comp.choices[0].message.content || msg
-           } catch(e) { console.error("AI Error", e) }
+    if (campaign.ai_enabled) {
+      const apiKey = process.env.OPENAI_API_KEY
+      if (apiKey) {
+        try {
+          const aiClient = new OpenAI({ apiKey })
+          const prompt = `Tono: ${campaign.ai_tone}. Contexto: ${campaign.ai_context}. Reescribe: "${msg}". Devuelve solo el resultado final directo.`
+          const comp = await aiClient.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [{ role: 'user', content: prompt }],
+          })
+          msg = comp.choices[0].message.content || msg
+        } catch (e) {
+          console.error('AI personalization error', e)
         }
-        finalMessage = msg
-        // Save it so we don't regenerate on retry
-        await supabase.from('message_queue').update({ personalized_message: finalMessage }).eq('id', item.id)
-     }
+      }
+    }
 
-     // Send via Evolution API
-     try {
-         // Normalize phone number (append 57 if it's a 10-digit Colombian mobile missing country code)
-         let cleanPhone = item.contacts.phone.replace(/\D/g, '')
-         if (cleanPhone.length === 10 && cleanPhone.startsWith('3')) cleanPhone = '57' + cleanPhone
-
-         // Basic text send or Media send
-         const hasMedia = !!campaign.attachment_url
-         const safeInstanceName = campaign.whatsapp_instances.instance_name.toLowerCase()
-         const endpoint = hasMedia ? `/message/sendMedia/${safeInstanceName}` : `/message/sendText/${safeInstanceName}`
-         
-         const payload = hasMedia ? {
-            number: cleanPhone,
-            mediatype: "image",
-            mimetype: "image/jpeg",
-            caption: finalMessage,
-            media: campaign.attachment_url
-         } : {
-            number: cleanPhone,      
-            text: finalMessage
-         }
-
-         const res = await fetch(`${EVOLUTION_URL}${endpoint}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'apikey': GLOBAL_API_KEY },
-            body: JSON.stringify(payload)
-         })
-
-         const evData = await res.json()
-         if (!res.ok) throw new Error(evData.response?.message || 'Evolution API Error')
-
-         // Success
-         await supabase.from('message_queue').update({ 
-            status: 'sent', 
-            sent_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            attempts: item.attempts + 1,
-            evolution_message_id: evData.key?.id
-         }).eq('id', item.id)
-
-         await supabase.from('message_logs').insert({
-            message_queue_id: item.id,
-            event_type: 'sent',
-            evolution_response: evData
-         })
-
-         messagesSentThisRun++
-     } catch(err: any) {
-         // Fail
-         await supabase.from('message_queue').update({ 
-            status: item.attempts + 1 >= 2 ? 'failed' : 'failed', // For simplicity
-            error_message: err.message,
-            updated_at: new Date().toISOString(),
-            attempts: item.attempts + 1
-         }).eq('id', item.id)
-
-         await supabase.from('message_logs').insert({
-            message_queue_id: item.id,
-            event_type: 'failed',
-            evolution_response: { error: err.message }
-         })
-     }
-
-     // Apply antispam sleep if not the last item in the batch
-     const delaySeconds = randomBetween(campaign.delay_min, campaign.delay_max)
-     await sleep(delaySeconds * 1000)
+    finalMessage = msg
+    await supabase
+      .from('message_queue')
+      .update({ personalized_message: finalMessage })
+      .eq('id', item.id)
   }
 
-  // Update campaign count
-  await supabase.from('campaigns').update({ sent_count: campaign.sent_count + messagesSentThisRun }).eq('id', campaign.id)
+  // 10. Send via Evolution API
+  try {
+    let cleanPhone = (item.contacts?.phone || '').replace(/\D/g, '')
+    if (cleanPhone.length === 10 && cleanPhone.startsWith('3')) cleanPhone = '57' + cleanPhone
 
-  return NextResponse.json({ message: 'Processed batch', sent: messagesSentThisRun })
+    const hasMedia = !!campaign.attachment_url
+    const safeInstanceName = campaign.whatsapp_instances.instance_name.toLowerCase()
+    const endpoint = hasMedia
+      ? `/message/sendMedia/${safeInstanceName}`
+      : `/message/sendText/${safeInstanceName}`
+
+    const payload = hasMedia
+      ? {
+          number: cleanPhone,
+          mediatype: 'image',
+          mimetype: 'image/jpeg',
+          caption: finalMessage,
+          media: campaign.attachment_url,
+        }
+      : { number: cleanPhone, text: finalMessage }
+
+    const res = await fetch(`${EVOLUTION_URL}${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: GLOBAL_API_KEY },
+      body: JSON.stringify(payload),
+    })
+
+    const evData = await res.json()
+    if (!res.ok) throw new Error(evData.response?.message || 'Evolution API Error')
+
+    // Mark sent
+    await supabase
+      .from('message_queue')
+      .update({
+        status: 'sent',
+        sent_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        attempts: item.attempts + 1,
+        evolution_message_id: evData.key?.id,
+      })
+      .eq('id', item.id)
+
+    await supabase.from('message_logs').insert({
+      message_queue_id: item.id,
+      event_type: 'sent',
+      evolution_response: evData,
+    })
+
+    // Update campaign sent counter
+    await supabase
+      .from('campaigns')
+      .update({ sent_count: campaign.sent_count + 1 })
+      .eq('id', campaign.id)
+
+    return NextResponse.json({
+      message: 'Message sent',
+      phone: cleanPhone,
+      campaign: campaign.name,
+      remaining: campaign.total_contacts - campaign.sent_count - 1,
+    })
+  } catch (err: any) {
+    // Mark failed
+    await supabase
+      .from('message_queue')
+      .update({
+        status: item.attempts + 1 >= 2 ? 'failed' : 'pending',
+        error_message: err.message,
+        updated_at: new Date().toISOString(),
+        attempts: item.attempts + 1,
+      })
+      .eq('id', item.id)
+
+    await supabase.from('message_logs').insert({
+      message_queue_id: item.id,
+      event_type: 'failed',
+      evolution_response: { error: err.message },
+    })
+
+    return NextResponse.json({ message: 'Send failed', error: err.message }, { status: 200 })
+  }
 }
