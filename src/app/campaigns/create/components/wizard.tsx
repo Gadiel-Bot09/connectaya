@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -54,7 +54,7 @@ export function WizardClient({ formData }: { formData: any }) {
     } else {
        if (data.schedule_type === 'immediate') {
           // Bypasses Github Actions by natively pinging the worker. Keepalive ensures termination protection.
-          fetch('/api/worker', { keepalive: true }).catch(e => console.error("Worker auto-trigger error", e))
+          fetch('/api/worker?force=true', { keepalive: true }).catch(e => console.error("Worker auto-trigger error", e))
        }
        router.push('/campaigns/history?success=true')
     }
@@ -328,3 +328,4 @@ export function WizardClient({ formData }: { formData: any }) {
     </Card>
   )
 }
+
