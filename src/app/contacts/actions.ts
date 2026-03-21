@@ -46,8 +46,16 @@ export async function deleteContact(id: string) {
    const { data: { user } } = await supabase.auth.getUser()
    if (!user) return { error: 'No autorizado' }
 
-   await supabase.from('contacts').delete().eq('id', id).eq('user_id', user.id)
-   revalidatePath('/contacts')
+   try {
+     // Soft-delete to preserve Campaign historical logs and referential integrity
+     const { error } = await supabase.from('contacts').update({ is_active: false }).eq('id', id).eq('user_id', user.id)
+     if (error) throw error
+     
+     revalidatePath('/contacts')
+     return { success: true }
+   } catch(e: any) {
+     return { error: e.message }
+   }
 }
 
 export async function createContactsBulk(contactsData: any[]) {

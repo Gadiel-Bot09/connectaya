@@ -46,8 +46,12 @@ export function ContactsClient({ initialContacts }: { initialContacts: Contact[]
 
   const handleDelete = async (id: string) => {
     if(confirm('¿Seguro que deseas eliminar este contacto?')) {
-      await deleteContact(id)
-      setContacts(prev => prev.filter(c => c.id !== id))
+      const res = await deleteContact(id)
+      if (res?.error) {
+         alert('Error eliminando contacto: ' + res.error)
+      } else {
+         setContacts(prev => prev.filter(c => c.id !== id))
+      }
     }
   }
 
