@@ -58,7 +58,20 @@ export async function GET(request: Request) {
 
   const campaign = campaigns[0]
 
-  // 3. Check WhatsApp instance is connected
+  // FAST COMPLETION: If all messages already sent, close this campaign immediately
+  // This prevents stuck ACTIVE campaigns from hijacking new campaign worker calls
+  if (campaign.total_contacts > 0 && campaign.sent_count >= campaign.total_contacts) {
+    await supabase
+      .from('campaigns')
+      .update({ status: 'completed', completed_at: new Date().toISOString() })
+      .eq('id', campaign.id)
+    return NextResponse.json({ 
+      message: 'Campaign auto-completed: all messages were already sent',
+      id: campaign.id,
+      done: true
+    })
+  }
+
   if (campaign.whatsapp_instances?.status !== 'open') {
     return NextResponse.json({ message: 'Instance is not connected', id: campaign.id })
   }
