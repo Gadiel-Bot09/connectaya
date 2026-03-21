@@ -44,30 +44,38 @@ export async function GET(request: Request) {
     .eq('status', 'scheduled')
     .lte('scheduled_at', new Date().toISOString())
 
-  // 2. Auto-complete any stale 'active' campaigns that already finished sending
-  // This fixes campaigns that got stuck in ACTIVE state
-  await supabase
-    .from('campaigns')
-    .update({ status: 'completed', completed_at: new Date().toISOString() })
-    .eq('status', 'active')
-    .gt('total_contacts', 0)
-    .filter('sent_count', 'gte', 'total_contacts')
-
-  // 3. Fetch one active campaign where there are still messages to send
-  // Only picks campaigns where sent_count < total_contacts (DB-level protection)
-  const { data: campaigns } = await supabase
+  // 2. Fetch active campaigns (up to 20) and filter in JS — PostgREST cannot compare
+  //    two columns in the same row (sent_count < total_contacts), so we do it here.
+  const { data: activeCampaigns } = await supabase
     .from('campaigns')
     .select('*, whatsapp_instances(instance_name, status)')
     .eq('status', 'active')
-    .or('total_contacts.eq.0,sent_count.lt.total_contacts')
     .order('created_at', { ascending: true })
-    .limit(1)
+    .limit(20)
 
-  if (!campaigns || campaigns.length === 0) {
+  if (!activeCampaigns || activeCampaigns.length === 0) {
     return NextResponse.json({ message: 'No active campaigns' })
   }
 
-  const campaign = campaigns[0]
+  // Auto-complete any campaigns that already sent all messages (stuck in ACTIVE)
+  const stale = activeCampaigns.filter(
+    (c: any) => c.total_contacts > 0 && c.sent_count >= c.total_contacts
+  )
+  for (const s of stale) {
+    await supabase
+      .from('campaigns')
+      .update({ status: 'completed', completed_at: new Date().toISOString() })
+      .eq('id', s.id)
+  }
+
+  // Pick the first campaign that still has messages to send
+  const campaign = activeCampaigns.find(
+    (c: any) => c.total_contacts === 0 || c.sent_count < c.total_contacts
+  )
+
+  if (!campaign) {
+    return NextResponse.json({ message: 'No active campaigns' })
+  }
 
   if (campaign.whatsapp_instances?.status !== 'open') {
     return NextResponse.json({ message: 'Instance is not connected', id: campaign.id })
