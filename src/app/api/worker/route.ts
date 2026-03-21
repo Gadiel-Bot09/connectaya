@@ -6,6 +6,7 @@ import { sendCampaignCompletedEmail } from '@/utils/email'
 
 // This endpoint should be triggered by a Cron Job every few minutes or manually via a background process
 export const maxDuration = 300 // Set max duration if deployed on Vercel Pro (5 mins) 
+export const dynamic = 'force-dynamic' // ABSOLUTELY CRITICAL: Prevent Vercel from caching the GET responses since it doesn't unconditionally use cookies().
 
 export async function GET(request: Request) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
