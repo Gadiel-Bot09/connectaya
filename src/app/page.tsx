@@ -31,17 +31,13 @@ export default async function IndexPage() {
     .order('created_at', { ascending: false })
     .limit(5)
 
-  // Get overall message stats
-  const { data: queueStats } = await supabase
-     .from('message_queue')
-     .select('status')
-  
-  let sentCount = 0
-  let failedCount = 0
-  if (queueStats) {
-     sentCount = queueStats.filter(q => q.status === 'sent').length
-     failedCount = queueStats.filter(q => q.status === 'failed').length
-  }
+  // Get message stats for THIS user only
+  const [{ count: sentCount }, { count: failedCount }] = await Promise.all([
+    supabase.from('message_queue').select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id).eq('status', 'sent'),
+    supabase.from('message_queue').select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id).eq('status', 'failed'),
+  ])
 
   const statCards = [
     { title: 'Contactos Totales', value: contactsCount || 0, icon: Users, color: 'text-blue-600', bg: 'bg-blue-100', link: '/contacts' },
