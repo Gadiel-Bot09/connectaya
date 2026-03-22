@@ -12,7 +12,7 @@ export async function GET(request: Request) {
 
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  let API_KEY = process.env.NEXT_PUBLIC_GMAPS_API_KEY || process.env.GMAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY
+  let API_KEY = process.env.NEXT_PUBLIC_GMAPS_API || process.env.NEXT_PUBLIC_GMAPS_API_KEY || process.env.GMAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY
   if (!API_KEY) {
      const { data: settings } = await supabase.from('user_settings').select('gmaps_api_key_encrypted').eq('user_id', user.id).single()
      API_KEY = settings?.gmaps_api_key_encrypted
