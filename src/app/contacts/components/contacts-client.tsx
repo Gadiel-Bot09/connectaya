@@ -103,43 +103,45 @@ export function ContactsClient({ initialContacts, knownLabels }: Props) {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-        <div className="flex gap-2 w-full sm:w-auto flex-1">
+    <div className="space-y-4">
+      {/* Toolbar — wraps to 2 rows on mobile */}
+      <div className="flex flex-col gap-3">
+        {/* Row 1: search + tag filter */}
+        <div className="flex gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-            <Input 
-              placeholder="Buscar contacto..." 
+            <Input
+              placeholder="Buscar contacto..."
               className="pl-9"
               value={search}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+            />
+          </div>
+          <div className="w-[180px] sm:w-[220px] shrink-0">
+            <TagSelector
+              value={tagFilter}
+              onChange={setTagFilter}
+              placeholder="Filtrar etiqueta..."
+              showCount
             />
           </div>
           {tagFilter && (
             <button
               type="button"
               onClick={() => setTagFilter('')}
-              className="text-xs text-blue-600 hover:underline whitespace-nowrap"
+              className="text-xs text-blue-600 hover:underline whitespace-nowrap self-center"
             >
-              Limpiar filtro
+              Limpiar
             </button>
           )}
-          <div className="min-w-[200px]">
-            <TagSelector
-              value={tagFilter}
-              onChange={setTagFilter}
-              placeholder="Filtrar por etiqueta..."
-              showCount
-            />
-          </div>
         </div>
-        
-        <div className="flex gap-2 w-full sm:w-auto">
+
+        {/* Row 2: import + new */}
+        <div className="flex gap-2">
            <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => setIsImportOpen(true)}>
-             <Upload className="w-4 h-4 mr-2"/> Importar CSV
+             <Upload className="w-4 h-4 mr-2"/>Importar CSV
            </Button>
            <ImportCsvModal open={isImportOpen} onOpenChange={setIsImportOpen} />
-           
            <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
               <Button className="flex-1 sm:flex-none">+ Nuevo Contacto</Button>
@@ -173,16 +175,17 @@ export function ContactsClient({ initialContacts, knownLabels }: Props) {
         </div>
       </div>
 
+      {/* Table with horizontal scroll on mobile */}
       <div className="bg-white rounded-xl border shadow-sm overflow-x-auto">
          <table className="w-full text-sm text-left">
-           <thead className="bg-slate-50/80 text-slate-600 font-medium border-b">
+           <thead className="bg-slate-50/80 text-slate-600 font-semibold border-b text-xs uppercase tracking-wide">
              <tr>
-               <th className="px-4 border-r py-3 text-nowrap">Nombre</th>
-               <th className="px-4 border-r py-3 text-nowrap">Teléfono</th>
-               <th className="px-4 border-r py-3 text-nowrap">Empresa</th>
-               <th className="px-4 border-r py-3 text-nowrap">Ciudad</th>
-               <th className="px-4 border-r py-3 text-nowrap">Etiqueta</th>
-               <th className="px-4 py-3 text-center">Acciones</th>
+               <th className="px-4 py-3 whitespace-nowrap">Nombre</th>
+               <th className="px-4 py-3 whitespace-nowrap">Teléfono</th>
+               <th className="px-4 py-3 whitespace-nowrap hidden sm:table-cell">Empresa</th>
+               <th className="px-4 py-3 whitespace-nowrap hidden md:table-cell">Ciudad</th>
+               <th className="px-4 py-3 whitespace-nowrap">Etiqueta</th>
+               <th className="px-4 py-3 text-center whitespace-nowrap">Acciones</th>
              </tr>
            </thead>
            <tbody>
