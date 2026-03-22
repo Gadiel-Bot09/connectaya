@@ -13,12 +13,23 @@ export default async function ContactsPage() {
     redirect('/login')
   }
 
-  const { data: contacts, error } = await supabase
-    .from('contacts')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('is_active', true)
-    .order('created_at', { ascending: false })
+  const [{ data: contacts, error }, { data: labels }] = await Promise.all([
+    supabase
+      .from('contacts')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('labels')
+      .select('name, color')
+      .eq('user_id', user.id)
+      .order('name')
+  ])
+
+  // Build a Set of known label names for quick lookup
+  const knownLabels: Record<string, string> = {}
+  labels?.forEach(l => { knownLabels[l.name] = l.color })
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -35,7 +46,7 @@ export default async function ContactsPage() {
       {error ? (
         <div className="text-red-500">Error cargando contactos: {error.message}</div>
       ) : (
-        <ContactsClient initialContacts={contacts || []} />
+        <ContactsClient initialContacts={contacts || []} knownLabels={knownLabels} />
       )}
     </div>
   )

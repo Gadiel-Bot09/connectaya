@@ -4,8 +4,8 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Trash2, Search, Upload } from 'lucide-react'
-import { createContact, deleteContact } from '../actions'
+import { Trash2, Search, Upload, Tag } from 'lucide-react'
+import { createContact, deleteContact, updateContactLabels } from '../actions'
 import { ImportCsvModal } from './import-csv-modal'
 import { TagSelector } from '@/components/tag-selector'
 
@@ -19,7 +19,13 @@ type Contact = {
   tags?: string[]
 }
 
-export function ContactsClient({ initialContacts }: { initialContacts: Contact[] }) {
+interface Props {
+  initialContacts: Contact[]
+  /** Map of label name → color from the labels table (server-side, source of truth) */
+  knownLabels: Record<string, string>
+}
+
+export function ContactsClient({ initialContacts, knownLabels }: Props) {
   const [contacts, setContacts] = useState(initialContacts)
   const [search, setSearch] = useState('')
   const [isOpen, setIsOpen] = useState(false)
@@ -30,9 +36,18 @@ export function ContactsClient({ initialContacts }: { initialContacts: Contact[]
   const [tagFilter, setTagFilter] = useState('')
   const [newContactTag, setNewContactTag] = useState('')
 
+  // Per-row label editing
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editLabel, setEditLabel] = useState('')
+  const [isSavingLabel, setIsSavingLabel] = useState(false)
+
+  // For a contact, only return tags that are known labels (ignore auto-tags)
+  const getKnownTags = (c: Contact) =>
+    (c.tags || []).filter(t => knownLabels[t] !== undefined)
+
   const filtered = contacts.filter(c => {
     const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search)
-    const matchesTag = !tagFilter || (c.tags || []).includes(tagFilter)
+    const matchesTag = !tagFilter || getKnownTags(c).includes(tagFilter)
     return matchesSearch && matchesTag
   })
 
@@ -40,7 +55,6 @@ export function ContactsClient({ initialContacts }: { initialContacts: Contact[]
     e.preventDefault()
     setIsLoading(true)
     const formData = new FormData(e.currentTarget)
-    // Inject the selected tag from the TagSelector state
     if (newContactTag) formData.set('tags', newContactTag)
     const res = await createContact(formData)
     
@@ -65,6 +79,29 @@ export function ContactsClient({ initialContacts }: { initialContacts: Contact[]
     }
   }
 
+  const handleStartEditLabel = (contact: Contact) => {
+    const known = getKnownTags(contact)
+    setEditLabel(known[0] || '')
+    setEditingId(contact.id)
+  }
+
+  const handleSaveLabel = async (contactId: string) => {
+    setIsSavingLabel(true)
+    const res = await updateContactLabels(contactId, editLabel)
+    if (res?.error) {
+      alert('Error asignando etiqueta: ' + res.error)
+    } else {
+      // Update local state immediately
+      setContacts(prev => prev.map(c => {
+        if (c.id !== contactId) return c
+        const otherTags = (c.tags || []).filter(t => !knownLabels[t])
+        return { ...c, tags: editLabel ? [editLabel, ...otherTags] : otherTags }
+      }))
+      setEditingId(null)
+    }
+    setIsSavingLabel(false)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -87,7 +124,7 @@ export function ContactsClient({ initialContacts }: { initialContacts: Contact[]
               Limpiar filtro
             </button>
           )}
-          <div className="min-w-[180px]">
+          <div className="min-w-[200px]">
             <TagSelector
               value={tagFilter}
               onChange={setTagFilter}
@@ -138,46 +175,92 @@ export function ContactsClient({ initialContacts }: { initialContacts: Contact[]
 
       <div className="bg-white rounded-xl border shadow-sm overflow-x-auto">
          <table className="w-full text-sm text-left">
-            <thead className="bg-slate-50/80 text-slate-600 font-medium border-b">
-              <tr>
-                <th className="px-4 border-r py-3 text-nowrap">Nombre</th>
-                <th className="px-4 border-r py-3 text-nowrap">Teléfono</th>
-                <th className="px-4 border-r py-3 text-nowrap">Empresa</th>
-                <th className="px-4 border-r py-3 text-nowrap">Ciudad</th>
-                <th className="px-4 border-r py-3 text-nowrap">Etiquetas</th>
-                <th className="px-4 py-3 text-center">Acciones</th>
-              </tr>
+           <thead className="bg-slate-50/80 text-slate-600 font-medium border-b">
+             <tr>
+               <th className="px-4 border-r py-3 text-nowrap">Nombre</th>
+               <th className="px-4 border-r py-3 text-nowrap">Teléfono</th>
+               <th className="px-4 border-r py-3 text-nowrap">Empresa</th>
+               <th className="px-4 border-r py-3 text-nowrap">Ciudad</th>
+               <th className="px-4 border-r py-3 text-nowrap">Etiqueta</th>
+               <th className="px-4 py-3 text-center">Acciones</th>
+             </tr>
            </thead>
            <tbody>
-              {filtered.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-12 text-slate-500">No se encontraron contactos.</td></tr>
-              ) : (
-                filtered.map(c => (
-                  <tr key={c.id} className="border-b last:border-0 hover:bg-slate-50/50 transition-colors">
-                    <td className="px-4 py-3 font-medium text-slate-900">{c.name}</td>
-                    <td className="px-4 py-3 font-mono text-slate-600">{c.phone}</td>
-                    <td className="px-4 py-3 text-slate-500">{c.company || '-'}</td>
-                    <td className="px-4 py-3 text-slate-500">{c.city || '-'}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {(c.tags || []).length > 0
-                          ? c.tags!.map(t => (
-                              <span key={t} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
-                                {t}
-                              </span>
-                            ))
-                          : <span className="text-slate-400 text-xs">—</span>
-                        }
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <Button variant="ghost" size="icon" className="text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full" onClick={() => handleDelete(c.id)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))
-              )}
+             {filtered.length === 0 ? (
+               <tr><td colSpan={6} className="text-center py-12 text-slate-500">No se encontraron contactos.</td></tr>
+             ) : (
+               filtered.map(c => {
+                 const knownTags = getKnownTags(c)
+                 const currentLabel = knownTags[0] || ''
+                 const isEditing = editingId === c.id
+
+                 return (
+                   <tr key={c.id} className="border-b last:border-0 hover:bg-slate-50/50 transition-colors">
+                     <td className="px-4 py-3 font-medium text-slate-900">{c.name}</td>
+                     <td className="px-4 py-3 font-mono text-slate-600">{c.phone}</td>
+                     <td className="px-4 py-3 text-slate-500">{c.company || '-'}</td>
+                     <td className="px-4 py-3 text-slate-500">{c.city || '-'}</td>
+                     <td className="px-4 py-3">
+                       {isEditing ? (
+                         <div className="flex items-center gap-2 min-w-[220px]">
+                           <div className="flex-1">
+                             <TagSelector
+                               value={editLabel}
+                               onChange={setEditLabel}
+                               placeholder="Asignar etiqueta..."
+                             />
+                           </div>
+                           <Button
+                             size="sm"
+                             disabled={isSavingLabel}
+                             onClick={() => handleSaveLabel(c.id)}
+                             className="h-7 px-2 text-xs"
+                           >
+                             {isSavingLabel ? '...' : 'OK'}
+                           </Button>
+                           <Button
+                             size="sm"
+                             variant="ghost"
+                             onClick={() => setEditingId(null)}
+                             className="h-7 px-2 text-xs"
+                           >
+                             ✕
+                           </Button>
+                         </div>
+                       ) : (
+                         <div
+                           className="flex items-center gap-1.5 cursor-pointer group"
+                           onClick={() => handleStartEditLabel(c)}
+                           title="Clic para editar etiqueta"
+                         >
+                           {currentLabel ? (
+                             <span
+                               className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border"
+                               style={{
+                                 backgroundColor: (knownLabels[currentLabel] || '#3B82F6') + '20',
+                                 borderColor: (knownLabels[currentLabel] || '#3B82F6') + '60',
+                                 color: knownLabels[currentLabel] || '#3B82F6'
+                               }}
+                             >
+                               {currentLabel}
+                             </span>
+                           ) : (
+                             <span className="text-slate-300 text-xs group-hover:text-blue-400 flex items-center gap-1">
+                               <Tag className="w-3 h-3" /> Asignar
+                             </span>
+                           )}
+                         </div>
+                       )}
+                     </td>
+                     <td className="px-4 py-3 text-center">
+                       <Button variant="ghost" size="icon" className="text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full" onClick={() => handleDelete(c.id)}>
+                         <Trash2 className="w-4 h-4" />
+                       </Button>
+                     </td>
+                   </tr>
+                 )
+               })
+             )}
            </tbody>
          </table>
       </div>

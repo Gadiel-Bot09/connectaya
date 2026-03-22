@@ -124,3 +124,28 @@ export async function checkDuplicatePhones(phones: string[]): Promise<{ existing
 
    return { existing: (data || []).map(c => c.phone) }
 }
+
+/**
+ * Updates the label assigned to a contact (replaces any previous label with a new one).
+ * Only replaces the "label" portion of tags (i.e., tags that exist in the labels table).
+ * Auto-generated tags like 'maps_import' are no longer stored, so this is a full reset.
+ */
+export async function updateContactLabels(contactId: string, labelName: string) {
+   const supabase = createClient()
+   const { data: { user } } = await supabase.auth.getUser()
+   if (!user) return { error: 'No autorizado' }
+
+   // The new tags array: just the label (or empty if cleared)
+   const newTags = labelName ? [labelName] : []
+
+   const { error } = await supabase
+     .from('contacts')
+     .update({ tags: newTags })
+     .eq('id', contactId)
+     .eq('user_id', user.id)
+
+   if (error) return { error: error.message }
+
+   revalidatePath('/contacts')
+   return { success: true }
+}

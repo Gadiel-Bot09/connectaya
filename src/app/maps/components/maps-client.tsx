@@ -137,18 +137,15 @@ export function MapsClient() {
     setIsImporting(true)
     setError(null)
 
-    const buildTags = (place: Place): string => {
-      const baseTags = ['maps_import', place.types?.[0] || 'negocio']
-      if (importLabel.trim()) baseTags.unshift(importLabel.trim())
-      return baseTags.join(',')
-    }
+    // Only assign the user's chosen label — no auto-junk tags like maps_import or Google type
+    const tagsValue = importLabel.trim() || ''
 
     const contactsToImport = preview.toImport.map(r => ({
       name: r.name,
       phone: r.phone,
       company: r.name,
       city: r.address ? r.address.split(',')[r.address.split(',').length - 2]?.trim() || r.address.split(',')[0] : '',
-      tags: buildTags(r)
+      tags: tagsValue
     }))
 
     const res = await createContactsBulk(contactsToImport)
