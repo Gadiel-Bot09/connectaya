@@ -11,7 +11,7 @@ export function AppLayoutWrapper({ children, userInitial, userName, userRole }: 
   const isAuthenticated = userName !== 'Invitado'
 
   // Ocultar barra en login/register siempre. Ocultar en '/' SOLO si no ha iniciado sesión.
-  const authRoutes = ['/login', '/register', '/reset-password', '/update-password']
+  const authRoutes = ['/login', '/register', '/reset-password', '/update-password', '/suspended']
   const isPublicRoute = authRoutes.includes(pathname) || (pathname === '/' && !isAuthenticated)
 
   const handleSignout = async () => {
@@ -26,7 +26,7 @@ export function AppLayoutWrapper({ children, userInitial, userName, userRole }: 
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
-      <Sidebar />
+      <Sidebar userRole={userRole} />
       <div className="flex-1 lg:pl-72 pl-64 flex flex-col min-h-screen transition-all">
         <header className="sticky top-0 z-10 w-full h-16 border-b bg-white/80 backdrop-blur-md px-8 flex items-center justify-between shadow-sm">
            <div className="flex items-center gap-4 flex-1">

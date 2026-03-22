@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { LayoutDashboard, Users, Send, MapPin, Settings, History, MessageSquareShare } from 'lucide-react'
+import { LayoutDashboard, Users, Send, MapPin, Settings, History, MessageSquareShare, ShieldCheck } from 'lucide-react'
 import { Logo } from '@/components/ui/logo'
 
 const navItems = [
@@ -16,8 +16,9 @@ const navItems = [
   { name: 'Ajustes Base', href: '/settings', icon: Settings },
 ]
 
-export function Sidebar() {
+export function Sidebar({ userRole }: { userRole?: string }) {
   const pathname = usePathname()
+  const isAdmin = userRole === 'admin'
 
   return (
     <aside className="fixed inset-y-0 left-0 z-20 flex w-64 flex-col border-r bg-slate-950 text-slate-300 transition-all lg:w-72">
@@ -29,6 +30,21 @@ export function Sidebar() {
 
       <div className="flex-1 overflow-y-auto py-6 px-4">
         <nav className="flex flex-col gap-1.5">
+          {/* Admin-only link */}
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium transition-all group mb-2",
+                pathname.startsWith('/admin')
+                  ? "bg-amber-500/10 text-amber-400"
+                  : "hover:bg-slate-900 hover:text-amber-400 text-amber-500/80"
+              )}
+            >
+              <ShieldCheck className={cn("h-5 w-5 transition-transform", pathname.startsWith('/admin') ? "text-amber-500" : "text-amber-600/70 group-hover:scale-110")} />
+              Admin — Licencias
+            </Link>
+          )}
           {navItems.map((item) => {
             const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
             const Icon = item.icon
