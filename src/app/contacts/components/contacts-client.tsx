@@ -201,8 +201,8 @@ export function ContactsClient({ initialContacts, knownLabels }: Props) {
                    <tr key={c.id} className="border-b last:border-0 hover:bg-slate-50/50 transition-colors">
                      <td className="px-4 py-3 font-medium text-slate-900">{c.name}</td>
                      <td className="px-4 py-3 font-mono text-slate-600">{c.phone}</td>
-                     <td className="px-4 py-3 text-slate-500">{c.company || '-'}</td>
-                     <td className="px-4 py-3 text-slate-500">{c.city || '-'}</td>
+                     <td className="px-4 py-3 text-slate-500 hidden sm:table-cell">{c.company || '-'}</td>
+                     <td className="px-4 py-3 text-slate-500 hidden md:table-cell">{c.city || '-'}</td>
                      <td className="px-4 py-3">
                        {isEditing ? (
                          <div className="flex items-center gap-2 min-w-[220px]">
@@ -274,3 +274,4 @@ export function ContactsClient({ initialContacts, knownLabels }: Props) {
     </div>
   )
 }
+
