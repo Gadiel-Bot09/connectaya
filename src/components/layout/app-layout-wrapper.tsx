@@ -1,16 +1,27 @@
 'use client'
 
+import { useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { Sidebar } from '@/components/layout/sidebar'
-import { Bell, Search, LogOut } from 'lucide-react'
+import { Bell, LogOut, Menu } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 
-export function AppLayoutWrapper({ children, userInitial, userName, userRole }: { children: React.ReactNode, userInitial: string, userName: string, userRole: string }) {
+export function AppLayoutWrapper({
+  children,
+  userInitial,
+  userName,
+  userRole,
+}: {
+  children: React.ReactNode
+  userInitial: string
+  userName: string
+  userRole: string
+}) {
   const pathname = usePathname()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const isAuthenticated = userName !== 'Invitado'
 
-  // Ocultar barra en login/register siempre. Ocultar en '/' SOLO si no ha iniciado sesión.
   const authRoutes = ['/login', '/register', '/reset-password', '/update-password', '/suspended']
   const isPublicRoute = authRoutes.includes(pathname) || (pathname === '/' && !isAuthenticated)
 
@@ -26,38 +37,59 @@ export function AppLayoutWrapper({ children, userInitial, userName, userRole }: 
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
-      <Sidebar userRole={userRole} />
-      <div className="flex-1 lg:pl-72 pl-64 flex flex-col min-h-screen transition-all">
-        <header className="sticky top-0 z-10 w-full h-16 border-b bg-white/80 backdrop-blur-md px-8 flex items-center justify-between shadow-sm">
-           <div className="flex items-center gap-4 flex-1">
-              <div className="relative w-full max-w-md hidden md:block">
-                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                 <input type="text" placeholder="Buscar campañas..." className="w-full h-10 pl-10 pr-4 text-sm bg-slate-100 border-transparent rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-slate-400" />
-              </div>
-           </div>
+      {/* Sidebar (drawer on mobile, fixed on desktop) */}
+      <Sidebar
+        userRole={userRole}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
 
-           <div className="flex items-center gap-4">
-              <button className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center relative hover:bg-slate-200 transition-colors">
-                 <Bell className="w-5 h-5 text-slate-600" />
-                 <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-slate-100 animate-pulse"></span>
-              </button>
-              <div className="h-8 w-[1px] bg-slate-200 mx-2"></div>
-              <div className="flex items-center gap-3">
-                 <div className="text-right hidden sm:block">
-                   <p className="text-sm font-bold text-slate-900 leading-none">{userName}</p>
-                   <p className="text-xs text-slate-500 mt-1 capitalize font-medium">{userRole}</p>
-                 </div>
-                 <div className="w-10 h-10 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 font-extrabold shadow-sm">
-                   {userInitial}
-                 </div>
-                 <button onClick={handleSignout} className="ml-2 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer" title="Cerrar sesión">
-                    <LogOut className="w-5 h-5" />
-                 </button>
+      {/* Main content — shifts right on desktop to make room for the fixed sidebar */}
+      <div className="flex-1 lg:pl-72 flex flex-col min-h-screen">
+        {/* Header */}
+        <header className="sticky top-0 z-20 w-full h-16 border-b bg-white/90 backdrop-blur-md flex items-center justify-between px-4 sm:px-6 shadow-sm shrink-0">
+          {/* Left: hamburger (mobile) */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
+              aria-label="Abrir menú"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Right: actions + user */}
+          <div className="flex items-center gap-2 sm:gap-3 ml-auto">
+            <button className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center relative hover:bg-slate-200 transition-colors">
+              <Bell className="w-4 h-4 text-slate-600" />
+              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500 border-2 border-white animate-pulse" />
+            </button>
+
+            <div className="h-7 w-px bg-slate-200 hidden sm:block" />
+
+            <div className="flex items-center gap-2">
+              {/* Name — hidden on very small screens */}
+              <div className="text-right hidden sm:block">
+                <p className="text-sm font-bold text-slate-900 leading-none truncate max-w-[120px]">{userName}</p>
+                <p className="text-xs text-slate-500 mt-0.5 capitalize font-medium">{userRole}</p>
               </div>
-           </div>
+              <div className="w-9 h-9 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center text-blue-700 font-extrabold text-sm shadow-sm shrink-0">
+                {userInitial}
+              </div>
+              <button
+                onClick={handleSignout}
+                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                title="Cerrar sesión"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </header>
 
-        <main className="flex-1 p-8 overflow-x-hidden">
+        {/* Page content */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-x-hidden">
           {children}
         </main>
       </div>

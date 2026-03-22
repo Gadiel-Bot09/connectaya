@@ -177,7 +177,7 @@ export function MapsClient() {
         <Card className="shadow-sm border-slate-200">
           <CardContent className="p-5">
             <form onSubmit={handleSearch} className="flex flex-col gap-3">
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
                  <div className="flex-1">
                     <label className="text-sm font-bold text-slate-800">Buscar negocios</label>
                     <Input 
@@ -188,7 +188,7 @@ export function MapsClient() {
                       className="bg-slate-50 border-slate-200 mt-1"
                     />
                  </div>
-                 <div className="w-24 shrink-0">
+                 <div className="w-full sm:w-24 shrink-0">
                     <label className="text-sm font-bold text-slate-800">Límite</label>
                     <select 
                       className="w-full h-10 border border-slate-200 rounded-md px-3 text-sm bg-slate-50 mt-1" 
