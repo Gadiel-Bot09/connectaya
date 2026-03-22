@@ -102,7 +102,7 @@ export function AdminClient({ initialUsers }: Props) {
           />
         </div>
         <select
-          className="h-9 px-3 text-sm border border-slate-200 rounded-lg bg-white"
+          className="h-9 px-3 text-sm border border-slate-300 rounded-lg bg-slate-50 text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
           value={filterStatus}
           onChange={e => setFilterStatus(e.target.value)}
         >
@@ -114,7 +114,7 @@ export function AdminClient({ initialUsers }: Props) {
           <option value="cancelled">Cancelada</option>
         </select>
         <select
-          className="h-9 px-3 text-sm border border-slate-200 rounded-lg bg-white"
+          className="h-9 px-3 text-sm border border-slate-300 rounded-lg bg-slate-50 text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
           value={filterPlan}
           onChange={e => setFilterPlan(e.target.value)}
         >
@@ -194,7 +194,7 @@ export function AdminClient({ initialUsers }: Props) {
                     <div className="relative inline-block">
                       <button
                         onClick={() => setOpenMenu(openMenu === u.id ? null : u.id)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors shadow-sm"
                       >
                         Acciones <ChevronDown className="w-3.5 h-3.5" />
                       </button>
