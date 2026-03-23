@@ -175,15 +175,15 @@ export function ContactsClient({ initialContacts, knownLabels }: Props) {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Añadir contacto manualmente</DialogTitle>
+                <DialogTitle className="text-slate-900">Añadir contacto manualmente</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleCreate} className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Input name="name" placeholder="Nombre completo" required />
-                  <Input name="phone" placeholder="Teléfono E.164 (ej: 573001234567)" required />
-                  <Input name="company" placeholder="Empresa (opcional)" />
-                  <Input name="city" placeholder="Ciudad (opcional)" />
-                  <Input name="email" type="email" placeholder="Email (opcional)" />
+                  <Input name="name" placeholder="Nombre completo" required className="text-slate-900 placeholder:text-slate-400" />
+                  <Input name="phone" placeholder="Teléfono E.164 (ej: 573001234567)" required className="text-slate-900 placeholder:text-slate-400" />
+                  <Input name="company" placeholder="Empresa (opcional)" className="text-slate-900 placeholder:text-slate-400" />
+                  <Input name="city" placeholder="Ciudad (opcional)" className="text-slate-900 placeholder:text-slate-400" />
+                  <Input name="email" type="email" placeholder="Email (opcional)" className="text-slate-900 placeholder:text-slate-400" />
                   <div>
                     <label className="text-xs font-semibold text-slate-600 block mb-1">Etiqueta</label>
                     <TagSelector
@@ -206,34 +206,34 @@ export function ContactsClient({ initialContacts, knownLabels }: Props) {
       <Dialog open={!!editContact} onOpenChange={open => { if (!open) setEditContact(null) }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Editar contacto</DialogTitle>
+            <DialogTitle className="text-slate-900">Editar contacto</DialogTitle>
           </DialogHeader>
           {editContact && (
             <form onSubmit={handleEditSubmit} className="space-y-3 py-2">
               <div className="space-y-2">
                 <div>
                   <label className="text-xs font-semibold text-slate-600 block mb-1">Nombre *</label>
-                  <Input name="name" defaultValue={editContact.name} placeholder="Nombre completo" required />
+                  <Input name="name" defaultValue={editContact.name} placeholder="Nombre completo" required className="text-slate-900 placeholder:text-slate-400" />
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-slate-600 block mb-1">Teléfono *</label>
-                  <Input name="phone" defaultValue={editContact.phone} placeholder="573001234567" required />
+                  <Input name="phone" defaultValue={editContact.phone} placeholder="573001234567" required className="text-slate-900 placeholder:text-slate-400" />
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-slate-600 block mb-1">Empresa</label>
-                  <Input name="company" defaultValue={editContact.company || ''} placeholder="Empresa (opcional)" />
+                  <Input name="company" defaultValue={editContact.company || ''} placeholder="Empresa (opcional)" className="text-slate-900 placeholder:text-slate-400" />
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-slate-600 block mb-1">Ciudad</label>
-                  <Input name="city" defaultValue={editContact.city || ''} placeholder="Ciudad (opcional)" />
+                  <Input name="city" defaultValue={editContact.city || ''} placeholder="Ciudad (opcional)" className="text-slate-900 placeholder:text-slate-400" />
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-slate-600 block mb-1">Email</label>
-                  <Input name="email" type="email" defaultValue={editContact.email || ''} placeholder="email@ejemplo.com" />
+                  <Input name="email" type="email" defaultValue={editContact.email || ''} placeholder="email@ejemplo.com" className="text-slate-900 placeholder:text-slate-400" />
                 </div>
               </div>
               <div className="flex gap-2 pt-1">
-                <Button type="button" variant="outline" className="flex-1" onClick={() => setEditContact(null)}>
+                <Button type="button" variant="outline" className="flex-1 text-slate-800 border-slate-300 hover:bg-slate-50" onClick={() => setEditContact(null)}>
                   Cancelar
                 </Button>
                 <Button type="submit" className="flex-1" disabled={isEditLoading}>
