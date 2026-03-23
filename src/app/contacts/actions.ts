@@ -149,3 +149,43 @@ export async function updateContactLabels(contactId: string, labelName: string) 
    revalidatePath('/contacts')
    return { success: true }
 }
+
+export async function updateContact(id: string, formData: FormData) {
+   const supabase = createClient()
+   const { data: { user } } = await supabase.auth.getUser()
+   if (!user) return { error: 'No autorizado' }
+
+   const name    = formData.get('name')    as string
+   const phone   = formData.get('phone')   as string
+   const company = formData.get('company') as string
+   const city    = formData.get('city')    as string
+   const email   = formData.get('email')   as string
+
+   if (!name || !phone) return { error: 'Nombre y telefono son obligatorios' }
+
+   const cleanPhone = phone.replace(/[^0-9]/g, '')
+
+   try {
+     const { error } = await supabase
+       .from('contacts')
+       .update({
+         name,
+         phone: cleanPhone,
+         company: company || null,
+         city:    city    || null,
+         email:   email   || null,
+       })
+       .eq('id', id)
+       .eq('user_id', user.id)
+
+     if (error) {
+       if (error.code === '23505') return { error: 'Ese numero ya existe en otro contacto' }
+       throw error
+     }
+
+     revalidatePath('/contacts')
+     return { success: true }
+   } catch(e: any) {
+     return { error: e.message }
+   }
+}
