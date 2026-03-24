@@ -12,6 +12,8 @@ import { sendCampaignCompletedEmail } from '@/utils/email'
 // which calls this endpoint repeatedly with sleep() between each call.
 // ----------------------------------------------------------------------
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
+export const revalidate = 0
 // maxDuration reduced to 30s — plenty for one AI call + one Evolution POST
 export const maxDuration = 30
 
