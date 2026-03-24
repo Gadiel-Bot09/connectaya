@@ -153,11 +153,21 @@ export async function GET(request: Request) {
 
   const item = queue[0]
 
-  // 8. Lock this single message to prevent race conditions
-  await supabase
+  // 8. Lock this single message to prevent race conditions (Optimistic Locking)
+  const { data: lockedRow } = await supabase
     .from('message_queue')
     .update({ status: 'sending', updated_at: new Date().toISOString() })
     .eq('id', item.id)
+    .in('status', ['pending', 'failed']) // Ensure it hasn't been grabbed by another worker
+    .select()
+
+  // If we couldn't lock it, another parallel worker already took it. Abort this run smoothly.
+  if (!lockedRow || lockedRow.length === 0) {
+    return NextResponse.json({ 
+      message: 'Collision: Message already being processed by another worker. Yielding.', 
+      next_delay_sec: 2 // Short delay to retry another message
+    })
+  }
 
   // 9. Personalize message (use cached version if already generated)
   let finalMessage = item.personalized_message
