@@ -154,15 +154,20 @@ export async function GET(request: Request) {
   const item = queue[0]
 
   // 8. Lock this single message to prevent race conditions (Optimistic Locking)
-  const { data: lockedRow } = await supabase
+  const { data: lockedRow, error: lockError } = await supabase
     .from('message_queue')
     .update({ status: 'sending', updated_at: new Date().toISOString() })
     .eq('id', item.id)
-    .in('status', ['pending', 'failed']) // Ensure it hasn't been grabbed by another worker
+    .eq('status', item.status) // Must exactly match the status we just read
     .select()
+
+  if (lockError) {
+    console.error('Optimistic lock error:', lockError)
+  }
 
   // If we couldn't lock it, another parallel worker already took it. Abort this run smoothly.
   if (!lockedRow || lockedRow.length === 0) {
+    console.warn(`Worker yielded on item.id=${item.id}: already locked or missing. lockError=`, lockError)
     return NextResponse.json({ 
       message: 'Collision: Message already being processed by another worker. Yielding.', 
       next_delay_sec: 2 // Short delay to retry another message
