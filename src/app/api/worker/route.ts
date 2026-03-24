@@ -39,6 +39,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Evolution API not configured' }, { status: 500 })
   }
 
+  // TELEMETRY: Log that the worker was invoked
+  await supabase.from('webhook_logs').insert({
+    event_type: 'worker_tick',
+    processed: true,
+    payload: { forceMode, time: new Date().toISOString() }
+  })
+
   // 1. Activate any scheduled campaigns that are now due
   await supabase
     .from('campaigns')
