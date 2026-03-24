@@ -45,7 +45,7 @@ jobs:
             echo ""
             echo "📨 Call $((CALLS_MADE + 1)) — Invoking worker (Elapsed: ${ELAPSED}s / ${MAX_TIME}s)..."
 
-            RESPONSE=$(curl -sS --max-time 30 \
+            RESPONSE=$(curl -sS -L --max-time 30 \
               -w "\n__HTTP_STATUS_%{http_code}__" \
               "$WORKER_URL/api/worker")
 
