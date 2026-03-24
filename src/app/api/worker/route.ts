@@ -247,6 +247,21 @@ export async function GET(request: Request) {
       .update({ sent_count: newSentCount })
       .eq('id', campaign.id)
 
+    // Calculate exact delay for the NEXT message (in seconds)
+    let nextDelaySec = 0;
+    if (remaining > 0) {
+      const isLongPause = campaign.pause_every > 0 && newSentCount % campaign.pause_every === 0;
+      if (isLongPause) {
+        const pmin = campaign.pause_min || 180;
+        const pmax = campaign.pause_max || 480;
+        nextDelaySec = Math.floor(Math.random() * (pmax - pmin + 1) + pmin);
+      } else {
+        const dmin = campaign.delay_min || 45;
+        const dmax = campaign.delay_max || 90;
+        nextDelaySec = Math.floor(Math.random() * (dmax - dmin + 1) + dmin);
+      }
+    }
+
     // If this was the last message, complete the campaign IMMEDIATELY
     // Don't wait for next worker call — prevents ACTIVE hijacking of future campaigns
     if (remaining <= 0) {
@@ -262,6 +277,7 @@ export async function GET(request: Request) {
         remaining: 0,
         done: true,
         note: 'Campaign completed — all messages sent',
+        next_delay_sec: 0,
       })
     }
 
@@ -270,6 +286,7 @@ export async function GET(request: Request) {
       phone: cleanPhone,
       campaign: campaign.name,
       remaining,
+      next_delay_sec: nextDelaySec,
     })
   } catch (err: any) {
     // Mark failed — first attempt returns to 'pending' for one retry, second attempt is permanent failure

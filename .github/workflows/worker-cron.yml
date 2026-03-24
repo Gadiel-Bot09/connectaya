@@ -22,22 +22,28 @@ jobs:
 
           # ---------------------------------------------------------------
           # STRATEGY: Call the stateless /api/worker endpoint repeatedly.
-          # Each call sends ONE message (zero internal sleep on Vercel).
-          # THIS script manages the 45-90 second anti-spam delay between calls.
-          # We loop up to 20 calls maximum per 5-minute window to avoid
-          # overlap with the next scheduled run.
+          # The API now calculates and returns the EXACT delay needed
+          # based on the user's campaign configuration (next_delay_sec).
+          # We loop for a maximum of 4 minutes (240s) to guarantee we
+          # cleanly exit before the next 5-minute cron starts!
           # ---------------------------------------------------------------
 
-          MAX_CALLS=20          # Max messages per 5-minute window
-          DELAY_MIN=50          # Minimum seconds between messages (antibloqueo)
-          DELAY_MAX=80          # Maximum seconds between messages (antibloqueo)
+          MAX_TIME=240          # 4 minutes max per cron run to avoid overlap
+          START_TIME=$(date +%s)
           CALLS_MADE=0
           STOP=false
 
-          while [ $CALLS_MADE -lt $MAX_CALLS ] && [ "$STOP" = "false" ]; do
+          while [ "$STOP" = "false" ]; do
+            CURRENT_TIME=$(date +%s)
+            ELAPSED=$((CURRENT_TIME - START_TIME))
+            
+            if [ $ELAPSED -ge $MAX_TIME ]; then
+              echo "⏱️ Reached 4-minute execution limit. Stopping cleanly to yield to next cron run."
+              break
+            fi
 
             echo ""
-            echo "📨 Call $((CALLS_MADE + 1)) of $MAX_CALLS — Invoking worker..."
+            echo "📨 Call $((CALLS_MADE + 1)) — Invoking worker (Elapsed: ${ELAPSED}s / ${MAX_TIME}s)..."
 
             RESPONSE=$(curl -sS --max-time 30 \
               -w "\n__HTTP_STATUS_%{http_code}__" \
@@ -49,7 +55,7 @@ jobs:
             echo "   HTTP Status: $HTTP_CODE"
             echo "   Response:    $BODY"
 
-            # Stop conditions — campaign done or nothing to process
+            # Stop conditions
             if echo "$BODY" | grep -q '"No active campaigns"'; then
               echo "✅ No active campaigns. Worker done."
               STOP=true
@@ -74,7 +80,6 @@ jobs:
               break
             fi
 
-            # If error response stop to avoid hammering
             if [ "$HTTP_CODE" != "200" ]; then
               echo "⚠️  Unexpected HTTP $HTTP_CODE. Stopping loop."
               STOP=true
@@ -83,11 +88,13 @@ jobs:
 
             CALLS_MADE=$((CALLS_MADE + 1))
 
-            if [ $CALLS_MADE -lt $MAX_CALLS ] && [ "$STOP" = "false" ]; then
-              # Random delay between messages — antibloqueo WhatsApp
-              SLEEP_TIME=$(shuf -i ${DELAY_MIN}-${DELAY_MAX} -n 1)
-              echo "   ⏳ Anti-spam delay: ${SLEEP_TIME} seconds..."
-              sleep $SLEEP_TIME
+            if [ "$STOP" = "false" ]; then
+              # Extract the exact delay requested by the campaign config
+              NEXT_DELAY=$(echo "$BODY" | grep -o '"next_delay_sec":[0-9]*' | cut -d: -f2)
+              if [ -z "$NEXT_DELAY" ]; then NEXT_DELAY=10; fi
+              
+              echo "   ⏳ Campaign requested delay: ${NEXT_DELAY} seconds..."
+              sleep $NEXT_DELAY
             fi
 
           done
