@@ -105,7 +105,30 @@ export async function GET(request: Request) {
     })
   }
 
-  // 5. Recover any stuck 'sending' messages from dead/timed-out workers (older than 5 min)
+  // 5. Intelligent Throttle (Anti-Spam Custom Pauses)
+  // Since we rely on Vercel Crons ticking every ~60s, we enforce custom delays mathematically
+  if (!forceMode && campaign.updated_at) {
+    const secondsSinceLastSend = (Date.now() - new Date(campaign.updated_at).getTime()) / 1000
+    
+    // Check if long pause is required (e.g. Pause 1 hour every 25 messages)
+    const isLongPause = campaign.pause_every_n > 0 && campaign.sent_count > 0 && campaign.sent_count % campaign.pause_every_n === 0
+    if (isLongPause) {
+      const pmin = (campaign.pause_duration_min || 180) * 60 // convert to seconds or assume it's seconds if already?
+      // Wait, in schema.sql: pause_duration_min is typically integer. Let's assume it's in seconds as before.
+      // Wait, the schema says: pause_duration_min integer default 180. 180 seconds = 3 minutes.
+      if (secondsSinceLastSend < pmin) {
+        return NextResponse.json({ message: `Yielding for long pause (${Math.round(pmin - secondsSinceLastSend)}s remaining)` })
+      }
+    } else {
+      // Normal message delay (e.g. 45 seconds)
+      const dmin = campaign.delay_min || 45
+      if (secondsSinceLastSend < dmin) {
+        return NextResponse.json({ message: `Yielding for normal delay (${Math.round(dmin - secondsSinceLastSend)}s remaining)` })
+      }
+    }
+  }
+
+  // 6. Recover any stuck 'sending' messages from dead/timed-out workers (older than 5 min)
   const fiveMinsAgo = new Date(Date.now() - 5 * 60000).toISOString()
   await supabase
     .from('message_queue')
@@ -271,23 +294,7 @@ export async function GET(request: Request) {
       .update({ sent_count: newSentCount })
       .eq('id', campaign.id)
 
-    // Calculate exact delay for the NEXT message (in seconds)
-    let nextDelaySec = 0;
-    if (remaining > 0) {
-      const isLongPause = campaign.pause_every > 0 && newSentCount % campaign.pause_every === 0;
-      if (isLongPause) {
-        const pmin = campaign.pause_min || 180;
-        const pmax = campaign.pause_max || 480;
-        nextDelaySec = Math.floor(Math.random() * (pmax - pmin + 1) + pmin);
-      } else {
-        const dmin = campaign.delay_min || 45;
-        const dmax = campaign.delay_max || 90;
-        nextDelaySec = Math.floor(Math.random() * (dmax - dmin + 1) + dmin);
-      }
-    }
-
     // If this was the last message, complete the campaign IMMEDIATELY
-    // Don't wait for next worker call — prevents ACTIVE hijacking of future campaigns
     if (remaining <= 0) {
       await supabase
         .from('campaigns')
@@ -295,13 +302,11 @@ export async function GET(request: Request) {
         .eq('id', campaign.id)
 
       return NextResponse.json({
-        message: 'Message sent',
+        message: 'Message sent and campaign completed',
         phone: cleanPhone,
         campaign: campaign.name,
         remaining: 0,
-        done: true,
-        note: 'Campaign completed — all messages sent',
-        next_delay_sec: 0,
+        done: true
       })
     }
 
@@ -310,7 +315,7 @@ export async function GET(request: Request) {
       phone: cleanPhone,
       campaign: campaign.name,
       remaining,
-      next_delay_sec: nextDelaySec,
+      done: false
     })
   } catch (err: any) {
     // Mark failed — first attempt returns to 'pending' for one retry, second attempt is permanent failure

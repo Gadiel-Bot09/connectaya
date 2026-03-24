@@ -47,7 +47,7 @@ export function ManualTrigger({ active, campaignId }: { active: boolean; campaig
       } else if (workerData.message === 'Message sent') {
         resultMsg += `✅ Mensaje enviado correctamente a ${workerData.phone || 'destinatario'}.\n`
         resultMsg += `📊 Restantes: ${workerData.remaining ?? 'N/A'} mensajes en la cola.\n`
-        resultMsg += `⏱️ GitHub Actions enviará el siguiente en 50-80 segundos automáticamente.`
+        resultMsg += `⏱️ El Cron Automático continuará empujando la cola cada 1 minuto.`
       } else {
         resultMsg += `ℹ️ ${workerData.message || JSON.stringify(workerData)}`
       }
