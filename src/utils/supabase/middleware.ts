@@ -35,7 +35,8 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith('/register') ||
     pathname.startsWith('/reset-password') ||
     pathname.startsWith('/auth') ||
-    pathname.startsWith('/suspended')
+    pathname.startsWith('/suspended') ||
+    pathname.startsWith('/api')
 
   // Redirect unauthenticated users to login (except public routes and root)
   if (!user && !isPublicRoute && pathname !== '/') {
