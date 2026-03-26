@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { CodesClient } from './components/codes-client'
 
 export const dynamic = 'force-dynamic'
@@ -12,11 +13,17 @@ export default async function AdminCodesPage() {
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'admin') redirect('/')
 
-  // Fetch plans
-  const { data: plans } = await supabase.from('plans').select('*').order('price_cop')
+  // Initialize service role admin to bypass RLS when fetching related profiles
+  const adminDB = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  // Fetch plans securely
+  const { data: plans } = await adminDB.from('plans').select('*').order('price_cop')
   
-  // Fetch codes with plan and user info
-  const { data: codes } = await supabase
+  // Fetch codes with plan and user info (Service role bypasses profile privacy RLS)
+  const { data: codes } = await adminDB
     .from('activation_codes')
     .select('*, plans(name), profiles:used_by(full_name, email)')
     .order('created_at', { ascending: false })
