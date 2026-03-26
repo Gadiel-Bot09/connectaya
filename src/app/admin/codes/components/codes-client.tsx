@@ -23,9 +23,10 @@ export function CodesClient({ initialCodes, plans }: { initialCodes: any[], plan
     const res = await generateCodes(planId, duration, quantity)
     if (res?.error) {
        alert(res.error)
-    } else {
-       // Refresh page to get new codes
-       window.location.reload()
+    } else if (res?.success && res.newCodes) {
+       // Insert new codes instantly at the top of the UI list
+       setCodes(prev => [...res.newCodes, ...prev])
+       setQuantity(1)
     }
     setLoading(false)
   }

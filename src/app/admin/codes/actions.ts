@@ -26,11 +26,11 @@ export async function generateCodes(planId: string, durationDays: number, count:
       created_by: user.id
     }))
 
-    const { error } = await supabase.from('activation_codes').insert(codesToInsert)
+    const { data: insertedCodes, error } = await supabase.from('activation_codes').insert(codesToInsert).select('*, plans(name)')
     if (error) throw error
 
     revalidatePath('/admin/codes')
-    return { success: true }
+    return { success: true, newCodes: insertedCodes }
   } catch (err: any) {
     console.error('Error generating codes:', err)
     return { error: 'Ocurrió un error al generar los códigos.' }
