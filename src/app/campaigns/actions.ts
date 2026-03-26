@@ -70,13 +70,13 @@ export async function createCampaign(data: any) {
         ai_tone: data.ai_tone || null,
         ai_context: data.ai_context || null,
         delay_min: data.delay_min,
-        delay_max: data.delay_max,
-        pause_every_n: data.pause_every_n,
-        pause_duration_min: data.pause_duration_min,
-        pause_duration_max: data.pause_duration_max,
-        daily_limit: data.daily_limit,
-        allowed_start_hour: data.allowed_start_hour,
-        allowed_end_hour: data.allowed_end_hour,
+         delay_max: data.delay_max || 90,
+         pause_every_n: data.pause_every_n || 0,
+         pause_duration_min: data.pause_duration_min || 0,
+         pause_duration_max: data.pause_duration_max || 0,
+         daily_limit: data.daily_limit ?? 150,
+         allowed_start_hour: data.allowed_start_hour || 8,
+         allowed_end_hour: data.allowed_end_hour || 19,
         status: data.schedule_type === 'immediate' ? 'active' : 'scheduled'
      }).select().single()
 

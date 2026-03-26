@@ -287,7 +287,7 @@ export function WizardClient({ formData }: { formData: any }) {
                          </div>
                        </div>
                        
-                       <div className="grid grid-cols-2 gap-6">
+                       <div className="grid grid-cols-2 gap-6 mb-5">
                          <div>
                            <Label className="text-xs text-slate-500 mb-1 block">Hora Inicio (0-23)</Label>
                            <Input type="number" className="bg-white" value={data.allowed_start_hour} onChange={(e: any) => updateData({ allowed_start_hour: Number(e.target.value) })} max={23} min={0} />
@@ -296,6 +296,14 @@ export function WizardClient({ formData }: { formData: any }) {
                            <Label className="text-xs text-slate-500 mb-1 block">Hora Fin (0-23)</Label>
                            <Input type="number" className="bg-white" value={data.allowed_end_hour} onChange={(e: any) => updateData({ allowed_end_hour: Number(e.target.value) })} max={23} min={0} />
                          </div>
+                       </div>
+
+                       <div className="bg-amber-50/50 border border-amber-200/50 p-4 rounded-lg">
+                         <Label className="text-xs font-bold text-amber-800 mb-1 block">Límite Diario (Freno de Emergencia)</Label>
+                         <p className="text-[11px] text-amber-700/80 mb-3 leading-relaxed">
+                            Si tu número de WhatsApp es nuevo, configura <b>20 o 30</b>. Si ya tiene reputación, usa <b>100 a 150</b>. El sistema pausará automáticamente los envíos al alcanzar este límite y retomará al día siguiente. <i>(0 = Ilimitado, muy riesgoso)</i>
+                         </p>
+                         <Input type="number" className="bg-white border-amber-200 w-full" value={data.daily_limit} onChange={(e: any) => updateData({ daily_limit: Number(e.target.value) })} min={0} />
                        </div>
                     </div>
                  </div>
