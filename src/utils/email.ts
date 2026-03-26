@@ -1,6 +1,7 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Usa un fallback seguro para evitar que Next.js crashee durante el "npm run build" en Vercel si falta la variable
+const resend = new Resend(process.env.RESEND_API_KEY || 're_dummy_key_build_only')
 const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'
 
 export async function sendCampaignCompletedEmail(userEmail: string, campaignName: string, sentCount: number, failedCount: number) {
