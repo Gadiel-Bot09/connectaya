@@ -1,26 +1,29 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { createClient as createJsClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/utils/supabase/server'
 import OpenAI from 'openai'
 import { sendCampaignCompletedEmail } from '@/utils/email'
 
-// STATELESS SINGLE-MESSAGE WORKER
-// ----------------------------------------------------------------------
-// Each HTTP call processes EXACTLY ONE message and returns immediately.
-// This keeps Vercel execution under their 10-second free plan limit.
-// Anti-spam delays (45-90s) are managed EXTERNALLY by GitHub Actions,
-// which calls this endpoint repeatedly with sleep() between each call.
-// ----------------------------------------------------------------------
+// Helper: Native Spintax Parser
+// Replaces {Hola|Saludos} with a random choice
+function parseSpintax(text: string): string {
+  const spintaxRegex = /{([^{}]+)}/g;
+  let result = text;
+  while (spintaxRegex.test(result)) {
+    result = result.replace(spintaxRegex, (match, contents) => {
+      const choices = contents.split('|');
+      return choices[Math.floor(Math.random() * choices.length)];
+    });
+  }
+  return result;
+}
+
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
 export const revalidate = 0
-// maxDuration reduced to 30s — plenty for one AI call + one Evolution POST
-export const maxDuration = 30
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  // force=true bypasses the hour restriction — used by manual 'Forzar Envío' button
-  const forceMode = searchParams.get('force') === 'true'
+export async function GET(req: NextRequest) { // Changed request: Request to req: NextRequest
+  const forceMode = req.nextUrl.searchParams.get('force') === 'true' // Changed from new URL(request.url)
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -90,7 +93,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ message: 'Instance is not connected', id: campaign.id })
   }
 
-  // 4. Check allowed sending hours (Colombia timezone) — SKIP if force mode
+  // 4a. Check allowed sending hours (Colombia timezone) — SKIP if force mode
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/Bogota',
     hour: 'numeric',
@@ -104,6 +107,33 @@ export async function GET(request: Request) {
       currentHour 
     })
   }
+
+  // 4b. Strict Mathematical Daily Limit (Anti-Spam) — SKIP if force mode
+  if (!forceMode && campaign.daily_limit > 0) {
+    // Determine midnight today in Bogota timezone
+    const dateFormatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Bogota',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    })
+    const todayStrColombia = dateFormatter.format(new Date()) // Format: YYYY-MM-DD
+    const todayMidnightUTC = `${todayStrColombia}T00:00:00-05:00` // Cast to ISO for Postgres
+
+    const { count: sentToday } = await supabase
+      .from('message_queue')
+      .select('*', { count: 'exact', head: true })
+      .eq('campaign_id', campaign.id)
+      .eq('status', 'sent')
+      .gte('sent_at', todayMidnightUTC)
+
+    if (sentToday !== null && sentToday >= campaign.daily_limit) {
+      return NextResponse.json({ 
+        message: `Daily limit reached (${sentToday}/${campaign.daily_limit} today). Yielding until tomorrow.`,
+        blocked: 'daily_limit'
+      })
+    }
+  } 
 
   // 5. Intelligent Throttle (Anti-Spam Custom Pauses)
   // Since we rely on Vercel Crons ticking every ~60s, we enforce custom delays mathematically
@@ -212,6 +242,9 @@ export async function GET(request: Request) {
     let msg = campaign.template_message
       .replace(/{{name}}/gi, item.contacts?.name || '')
       .replace(/{{company}}/gi, item.contacts?.company || '')
+      
+    // Apply Native Spintax {Hola|Saludos}
+    msg = parseSpintax(msg)
 
     if (campaign.ai_enabled) {
       const apiKey = process.env.OPENAI_API_KEY

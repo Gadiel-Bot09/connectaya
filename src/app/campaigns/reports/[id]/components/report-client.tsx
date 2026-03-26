@@ -74,6 +74,13 @@ export function ReportClient({ campaign, queue }: { campaign: any, queue: any[] 
 
    const successRate = queue.length > 0 ? Math.round(((statusCounts['sent'] || 0) / queue.length) * 100) : 0
 
+   // 4. Límite Diario (Anti-Ban warning)
+   const todayDateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
+   const midnightUTCStr = `${todayDateStr}T00:00:00-05:00`
+   const midnightTime = new Date(midnightUTCStr).getTime()
+   const sentTodayCount = queue.filter(q => q.status === 'sent' && q.sent_at && new Date(q.sent_at).getTime() >= midnightTime).length
+   const isDailyLimitReached = campaign.daily_limit > 0 && sentTodayCount >= campaign.daily_limit
+
    return (
       <div className="flex flex-col gap-6">
          <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -88,7 +95,15 @@ export function ReportClient({ campaign, queue }: { campaign: any, queue: any[] 
 
          {/* Contenedor Ref para el PDF */}
          <div ref={reportRef} className="space-y-6 bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+            {isDailyLimitReached && (
+               <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded shadow-sm flex flex-col justify-center">
+                  <p className="font-bold text-amber-800 text-lg">⚠️ Límite Diario Alcanzado ({sentTodayCount}/{campaign.daily_limit} hoy)</p>
+                  <p className="text-amber-700 text-sm mt-1">Por tu seguridad antibaneo, el Cron Automático ha pausado la campaña por el resto del día. El envío se reanudará automáticamente en la madrugada.</p>
+               </div>
+            )}
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+
             <Card className="shadow-sm border-slate-200">
                <CardContent className="p-6">
                   <p className="text-sm font-medium text-slate-500 mb-1">Total Contactos</p>
