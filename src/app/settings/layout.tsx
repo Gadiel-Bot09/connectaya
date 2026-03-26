@@ -3,10 +3,11 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ReactNode } from 'react'
-import { Settings, MessageSquare, Users } from 'lucide-react'
+import { Settings, MessageSquare, Users, CreditCard } from 'lucide-react'
 
 const navItems = [
   { name: 'General', href: '/settings', icon: Settings },
+  { name: 'Mi Plan', href: '/settings/billing', icon: CreditCard },
   { name: 'WhatsApp', href: '/settings/whatsapp', icon: MessageSquare },
   { name: 'Usuarios', href: '/settings/users', icon: Users },
 ]

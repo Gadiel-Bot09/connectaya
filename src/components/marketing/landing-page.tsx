@@ -98,21 +98,65 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Trust Section */}
-      <section className="py-24 bg-white border-t border-slate-100">
-        <div className="max-w-4xl mx-auto px-6 text-center">
-           <div className="w-20 h-20 bg-slate-900 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl -rotate-3">
-              <Server className="w-10 h-10 text-white" />
+      {/* Planes Section */}
+      <section id="planes" className="py-24 bg-white border-t border-slate-100">
+        <div className="max-w-6xl mx-auto px-6">
+           <div className="text-center mb-16">
+              <h2 className="text-4xl font-black text-slate-900 mb-4">Acelera tus ventas sin límites</h2>
+              <p className="text-xl text-slate-500 font-medium">Elige el plan ideal para automatizar tu negocio hoy mismo.</p>
            </div>
-           <h2 className="text-4xl font-black text-slate-900 mb-6">Poderosa Infraestructura</h2>
-           <p className="text-xl text-slate-500 font-medium mb-10">Conectamos tu negocio directamente con Evolution API mediante servidores locales (Minio/CDN), asegurando la entrega masiva de imágenes pesadas y miles de textos sin caídas.</p>
            
-           <div className="flex flex-wrap justify-center gap-4 mt-8">
-             {['Next.js 14', 'Supabase Auth', 'Evolution API v2', 'TailwindCSS', 'AWS S3 / Minio'].map(tech => (
-                <div key={tech} className="px-5 py-2 rounded-full border border-slate-200 bg-slate-50 font-bold text-slate-600 flex items-center gap-2">
-                   <CheckCircle2 className="w-4 h-4 text-emerald-500" /> {tech}
-                </div>
-             ))}
+           <div className="grid md:grid-cols-3 gap-8">
+              {/* Basico */}
+              <div className="border border-slate-200 rounded-3xl p-8 bg-white flex flex-col hover:border-blue-200 transition-colors">
+                 <h3 className="text-xl font-bold text-slate-600 mb-2">Emprendedor</h3>
+                 <p className="text-4xl font-black text-slate-900 mb-1">$49.000 <span className="text-lg text-slate-500 font-medium">/mes</span></p>
+                 <p className="text-sm text-slate-500 mb-6 font-medium">Perfecto para negocios que recién comienzan a automatizar.</p>
+                 <a href="https://wa.me/573012929983?text=Hola,%20vengo%20de%20la%20página%20web%20y%20quiero%20adquirir%20el%20Plan%20Emprendedor." target="_blank" rel="noreferrer" className="w-full flex justify-center py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-full font-bold transition-colors mb-8">
+                    Adquirir Plan
+                 </a>
+                 <div className="flex-1 space-y-4">
+                    <p className="flex items-center gap-3 text-sm font-medium text-slate-700"><CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0"/> 1 Número de WhatsApp</p>
+                    <p className="flex items-center gap-3 text-sm font-medium text-slate-700"><CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0"/> 500 contactos/mes</p>
+                    <p className="flex items-center gap-3 text-sm font-medium text-slate-700"><CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0"/> Spintax Nativo Incluido</p>
+                    <p className="flex items-center gap-3 text-sm font-medium text-slate-700"><CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0"/> Soporte Básico</p>
+                 </div>
+              </div>
+
+              {/* Pro (Destacado) */}
+              <div className="border-2 border-blue-600 rounded-3xl p-8 bg-blue-50 flex flex-col relative shadow-xl shadow-blue-900/5 transform md:-translate-y-4">
+                 <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-blue-600 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Opción Popular</div>
+                 <h3 className="text-xl font-bold text-blue-600 mb-2">Profesional</h3>
+                 <p className="text-4xl font-black text-slate-900 mb-1">$99.000 <span className="text-lg text-slate-500 font-medium">/mes</span></p>
+                 <p className="text-sm text-slate-500 mb-6 font-medium">Para equipos listos para dominar su mercado.</p>
+                 <a href="https://wa.me/573012929983?text=Hola,%20vengo%20de%20la%20página%20web%20y%20quiero%20adquirir%20el%20Plan%20Profesional." target="_blank" rel="noreferrer" className="w-full flex justify-center py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-bold shadow-lg shadow-blue-500/30 transition-all mb-8">
+                    Adquirir Plan
+                 </a>
+                 <div className="flex-1 space-y-4">
+                    <p className="flex items-center gap-3 text-sm font-medium text-slate-900"><CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0"/> 3 Números de WhatsApp</p>
+                    <p className="flex items-center gap-3 text-sm font-medium text-slate-900"><CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0"/> Campañas Ilimitadas</p>
+                    <p className="flex items-center gap-3 text-sm font-medium text-slate-900"><CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0"/> Multimensaje IA (GPT-4)</p>
+                    <p className="flex items-center gap-3 text-sm font-medium text-slate-900"><CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0"/> Extractor de Google Maps</p>
+                    <p className="flex items-center gap-3 text-sm font-medium text-slate-900"><CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0"/> Soporte Prioritario</p>
+                 </div>
+              </div>
+
+              {/* Elite */}
+              <div className="border border-slate-200 rounded-3xl p-8 bg-slate-900 flex flex-col text-white">
+                 <h3 className="text-xl font-bold text-slate-400 mb-2">Élite</h3>
+                 <p className="text-4xl font-black text-white mb-1">$199.000 <span className="text-lg text-slate-400 font-medium">/mes</span></p>
+                 <p className="text-sm text-slate-400 mb-6 font-medium">Potencia total para agencias y call centers.</p>
+                 <a href="https://wa.me/573012929983?text=Hola,%20vengo%20de%20la%20página%20web%20y%20quiero%20adquirir%20el%20Plan%20Élite." target="_blank" rel="noreferrer" className="w-full flex justify-center py-3 bg-white hover:bg-slate-100 text-slate-900 rounded-full font-bold transition-colors mb-8">
+                    Adquirir Plan
+                 </a>
+                 <div className="flex-1 space-y-4">
+                    <p className="flex items-center gap-3 text-sm font-medium text-slate-200"><CheckCircle2 className="w-5 h-5 text-indigo-400 shrink-0"/> 10 Números de WhatsApp</p>
+                    <p className="flex items-center gap-3 text-sm font-medium text-slate-200"><CheckCircle2 className="w-5 h-5 text-indigo-400 shrink-0"/> Envíos Ultra-Rápidos</p>
+                    <p className="flex items-center gap-3 text-sm font-medium text-slate-200"><CheckCircle2 className="w-5 h-5 text-indigo-400 shrink-0"/> Agentes Múltiples (Próximamente)</p>
+                    <p className="flex items-center gap-3 text-sm font-medium text-slate-200"><CheckCircle2 className="w-5 h-5 text-indigo-400 shrink-0"/> Integración de API v2</p>
+                    <p className="flex items-center gap-3 text-sm font-medium text-slate-200"><CheckCircle2 className="w-5 h-5 text-indigo-400 shrink-0"/> Asesoría de Crecimiento VIP</p>
+                 </div>
+              </div>
            </div>
         </div>
       </section>

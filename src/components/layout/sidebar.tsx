@@ -69,18 +69,33 @@ export function Sidebar({ userRole, isOpen, onClose }: SidebarProps) {
           <nav className="flex flex-col gap-1">
             {/* Admin link */}
             {isAdmin && (
-              <NavLink
-                href="/admin"
-                className={cn(
-                  'flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] font-semibold transition-all duration-150 mb-2 group',
-                  pathname.startsWith('/admin')
-                    ? 'bg-amber-500/10 text-amber-400'
-                    : 'text-amber-500/70 hover:bg-slate-800/80 hover:text-amber-400'
-                )}
-              >
-                <ShieldCheck className={cn('h-5 w-5 shrink-0', pathname.startsWith('/admin') ? 'text-amber-400' : 'text-amber-600/60')} />
-                Admin — Licencias
-              </NavLink>
+              <div className="mb-2 space-y-1 bg-amber-950/20 p-2 rounded-2xl border border-amber-500/10">
+                <p className="px-2 text-[10px] font-bold uppercase tracking-widest text-amber-500/50 mb-1">Superadmin</p>
+                <NavLink
+                  href="/admin"
+                  className={cn(
+                    'flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-semibold transition-all duration-150 group',
+                    pathname === '/admin'
+                      ? 'bg-amber-500/10 text-amber-400'
+                      : 'text-amber-500/70 hover:bg-slate-800/80 hover:text-amber-400'
+                  )}
+                >
+                  <ShieldCheck className={cn('h-4 w-4 shrink-0', pathname === '/admin' ? 'text-amber-400' : 'text-amber-600/60')} />
+                  Gestionar Usuarios
+                </NavLink>
+                <NavLink
+                  href="/admin/codes"
+                  className={cn(
+                    'flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-semibold transition-all duration-150 group',
+                    pathname === '/admin/codes'
+                      ? 'bg-amber-500/10 text-amber-400'
+                      : 'text-amber-500/70 hover:bg-slate-800/80 hover:text-amber-400'
+                  )}
+                >
+                  <ShieldCheck className={cn('h-4 w-4 shrink-0', pathname === '/admin/codes' ? 'text-amber-400' : 'text-amber-600/60')} />
+                  Fábrica de Códigos
+                </NavLink>
+              </div>
             )}
 
             {navItems.map((item) => {

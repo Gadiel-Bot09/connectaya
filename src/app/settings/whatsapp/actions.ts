@@ -8,6 +8,17 @@ export async function createInstance(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'No autorizado' }
 
+  // [ENFORCEMENT] Check instance limit based on plan
+  const { data: profile } = await supabase.from('profiles').select('role, plans(max_instances)').eq('id', user.id).single()
+  
+  if (profile?.role !== 'admin') {
+     const maxInstances = (profile?.plans as any)?.max_instances || 0
+     const { count } = await supabase.from('whatsapp_instances').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
+     if ((count || 0) >= maxInstances) {
+        return { error: `Tu plan actual permite un máximo de ${maxInstances} números de WhatsApp conectados. Por favor, contacta a ventas para adquirir o mejorar tu plan.` }
+     }
+  }
+
   const instanceName = formData.get('instanceName') as string
   if (!instanceName) return { error: 'El nombre es obligatorio' }
   
